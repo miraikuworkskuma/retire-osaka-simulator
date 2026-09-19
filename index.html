@@ -71,6 +71,11 @@
     </div>
     <label>月給(額面)</label>
     <div class="chips" id="salChips"></div>
+    <div class="grid">
+      <div><label>昇給(実質・年):<span class="val" id="raiseV"></span></label><input type="range" id="raise" min="0" max="3" step="0.5"></div>
+      <div><label>ボーナス(年):<span class="val" id="bonusV"></span></label><input type="range" id="bonus" min="0" max="6" step="0.5"></div>
+    </div>
+    <p class="muted">昇給は「物価上昇を除いた実質」の伸び率で、55歳まで続く想定です(0%=物価と同じペースでしか上がらない)。ボーナスは月給の何か月分を年にもらうか。</p>
     <p class="muted" id="thNote"></p>
     <label>貯蓄率(手取りのうち貯める割合):<span class="val" id="rateV"></span></label>
     <input type="range" id="rate" min="0" max="80" step="1">
@@ -127,8 +132,8 @@
     <h2>計算の前提と注意</h2>
     <ul class="note">
       <li>これは<b>ざっくりの目安</b>です。生活費は総務省「家計調査」の傾向と大阪市内の家賃相場をもとにした<b>私たちの概算</b>で、実際は暮らし方で大きく変わります。投資・年金の専門的な助言ではありません。</li>
-      <li>手取りは額面の78〜82%で計算(月給の高さで変化)。ボーナスは含めていません。</li>
-      <li>物価上昇を除いた金額で計算し、給料は上がらない前提です(実際は昇給があればもっと有利)。</li>
+      <li>手取りは額面の78〜82%で計算(月給の高さで変化)。ボーナスは「月給の何か月分」を入力した分だけ加算(初期値は0か月)。</li>
+      <li>物価上昇を除いた金額で計算します。昇給は実質の伸び率を入力した分だけ、55歳まで毎年上がる想定(初期値は0%=昇給なし)。厚生年金にも昇給・ボーナスが反映されます。</li>
       <li>年金は、国民年金(満額 月7.0万円)+厚生年金(22歳から退職まで会社員として加入、月給を平均給与として概算)。既婚の場合は配偶者の国民年金(月7.0万円)も加算。</li>
       <li>60歳前に退職する場合は、国民年金保険料(月1.7万円/人)を老後の生活費に加えています。年金は繰り上げ・繰り下げ受給の増減はしません。</li>
       <li>既婚は「夫婦の世帯収入」を月給に入力してください。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
@@ -171,7 +176,7 @@ const costTotal = (hh, age, kids) => sum(COST[hh][decade(age)]) + (hh==="couple"
 
 // ===== 状態 =====
 const STORE_KEY = "retire-osaka";
-const DEFAULT = {hh:"single", age:30, kids:0, salary:30, rate:30, target:60, cash:0, ret:2, end:95, pstart:65, retExp:""};
+const DEFAULT = {hh:"single", age:30, kids:0, salary:30, rate:30, target:60, cash:0, raise:0, bonus:0, ret:2, end:95, pstart:65, retExp:""};
 let S = {...DEFAULT};
 try { Object.assign(S, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); } catch(e){}
 const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e){} };
@@ -180,20 +185,25 @@ const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S))
 const takeHome = salary => salary * TH_RATE[salary];   // 万円/月
 
 // 退職年齢Rのときの年金(万円/月)。厚生年金は「平均月給×乗率×加入月数」が年額
+// 昇給の倍率(今の年齢を1として、55歳まで毎年伸びる。過去は逆算)
+const growth = (p, age) => Math.pow(1 + p.raise/100, Math.min(age,55) - p.age);
 function pension(p, R){
-  const months = Math.max(0, Math.min(R,65) - 22) * 12;
-  const kosei = Math.min(p.salary, 65) * KOSEI_K * months / 12;
+  const end = Math.min(R,65), months = Math.max(0, end - 22) * 12;
+  let avg = 0;   // 加入期間の平均月給(ボーナス込みで月換算・上限65万円)
+  for (let y=22; y<end; y++) avg += Math.min(p.salary * growth(p,y) * (12+p.bonus)/12, 65);
+  avg = months ? avg/(end-22) : 0;
+  const kosei = avg * KOSEI_K * months / 12;
   return KIHON + kosei + (p.hh==="couple" ? KIHON : 0);
 }
 const retireCost = p => p.retExp !== "" && !isNaN(+p.retExp) ? +p.retExp : costTotal(p.hh, 60, 0);
 
 // 資産の推移をシミュレーション(単位:万円)
 function simulate(p, R, rate){
-  const g = 1 + p.ret/100, save = takeHome(p.salary)*rate*12;
+  const g = 1 + p.ret/100, yearTH = takeHome(p.salary)*(12+p.bonus);
   const pen = pension(p, R), people = p.hh==="couple" ? 2 : 1, base = retireCost(p);
   let a = p.cash;
   const traj = [{age:p.age, v:a}];
-  for (let age=p.age; age<R; age++){ a = a*g + save; traj.push({age:age+1, v:a}); }
+  for (let age=p.age; age<R; age++){ a = a*g + yearTH*growth(p,age)*rate; traj.push({age:age+1, v:a}); }
   for (let age=R; age<p.end; age++){
     const spend = (base + (age<60 ? NENKIN_HOKEN*people : 0))*12 - (age>=p.pstart ? pen*12 : 0);
     a = a*g - spend;
@@ -232,6 +242,8 @@ function clampState(){
   S.kids = S.hh==="couple" ? Math.min(3, Math.max(0, +S.kids||0)) : 0;
   S.rate = Math.min(80, Math.max(0, +S.rate||0));
   S.cash = Math.max(0, +S.cash||0);
+  S.raise = Math.min(3, Math.max(0, +S.raise||0));
+  S.bonus = Math.min(6, Math.max(0, +S.bonus||0));
   S.ret = Math.min(6, Math.max(0, isNaN(+S.ret) ? 2 : +S.ret));
   S.end = Math.min(105, Math.max(80, +S.end||95));
   S.pstart = Math.min(75, Math.max(60, +S.pstart||65));
@@ -240,13 +252,14 @@ function clampState(){
 
 function render(){
   clampState(); persist(); buildChips();
-  const p = S, rate = p.rate/100, th = takeHome(p.salary);
+  const p = S, rate = p.rate/100, th = takeHome(p.salary)*(12+p.bonus)/12;   // 月あたりの手取り(ボーナス込み)
   setVal("age",p.age); $("ageV").textContent=p.age+"歳";
   setVal("kids",p.kids); $("kidsV").textContent=p.kids+"人"; $("kidsBox").style.display = p.hh==="couple" ? "" : "none";
   setVal("rate",p.rate); $("rateV").textContent=p.rate+"%";
   $("target").min=p.age; setVal("target",p.target); $("targetV").textContent=p.target+"歳";
+  setVal("raise",p.raise); $("raiseV").textContent=p.raise+"%"; setVal("bonus",p.bonus); $("bonusV").textContent=p.bonus+"か月分";
   setVal("cash",p.cash); setVal("ret",p.ret); setVal("end",p.end); setVal("pstart",p.pstart); setVal("retExp",p.retExp);
-  $("thNote").textContent = `月給${p.salary}万円 → 手取りは約${man(th)}万円。貯蓄率${p.rate}%なら毎月約${man(th*rate)}万円を貯めます。`;
+  $("thNote").textContent = `月給${p.salary}万円 → 手取りは月平均約${man(th)}万円(ボーナス込み)。貯蓄率${p.rate}%なら毎月約${man(th*rate)}万円を貯めます。`;
 
   // 結果:最短の退職年齢
   const best = earliest(p, rate);
@@ -337,7 +350,7 @@ function drawTables(){
 // ===== 操作 =====
 $("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
 $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
-["age","kids","rate","target","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+["age","kids","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
 render();
 </script>
 </body>
