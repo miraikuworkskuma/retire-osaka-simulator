@@ -44,7 +44,8 @@
   .scroll{overflow-x:auto}
   .tbl input{width:4.6em;padding:.25em .3em;text-align:right;border-radius:6px}
   .cur{outline:3px solid var(--brand);outline-offset:-3px}
-  .c-ok{background:var(--okbg)} .c-mid{background:#fff8db} .c-hard{background:var(--warnbg)} .c-ng{background:var(--ngbg);color:var(--ng)}
+  .c-ok{background:var(--okbg)} .c-mid{background:#fff8db} .c-hard{background:var(--warnbg)} .c-ng{background:var(--ngbg);color:var(--ng)} .bad{color:var(--ng)!important}
+  input.edited{background:#fff8db} @media (prefers-color-scheme:dark){input.edited{background:#3b3712}}
   svg{width:100%;height:auto;display:block}
   ul.note{padding-left:1.2em;margin:.3em 0} ul.note li{margin:.2em 0}
   @media (prefers-color-scheme:dark){
@@ -70,8 +71,10 @@
       <div><label>今の年齢:<span class="val" id="ageV"></span></label><input type="range" id="age" min="20" max="64" step="1"></div>
       <div id="kidsBox"><label>子ども(人数):<span class="val" id="kidsV"></span></label><input type="range" id="kids" min="0" max="3" step="1"></div>
     </div>
-    <label>月給(額面)</label>
-    <div class="chips" id="salChips"></div>
+    <label id="salLabel">月給(額面・万円)</label>
+    <input type="number" id="salary" min="10" max="200" step="1">
+    <p class="muted" id="salHint"></p>
+    <div class="chips" id="salChips" style="margin-top:.4em"></div>
     <div class="grid">
       <div><label>昇給(実質・年):<span class="val" id="raiseV"></span></label><input type="range" id="raise" min="0" max="3" step="0.5"></div>
       <div><label>ボーナス(年):<span class="val" id="bonusV"></span></label><input type="range" id="bonus" min="0" max="6" step="0.5"></div>
@@ -118,7 +121,7 @@
 
   <section class="card">
     <h2>④ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
-    <p class="muted">今の年齢・世帯・貯金などは上の条件のまま、月給と貯蓄率だけ変えた表です。青い枠が今の設定に近いマス。</p>
+    <p class="muted">今の年齢・世帯・貯金などは上の条件のまま、月給と貯蓄率だけ変えた表です。青い枠が今の設定に近いマス。<span class="bad">赤(⚠)</span>は貯蓄後の生活費が平均の85%を下回る無理めな組み合わせです。</p>
     <div class="scroll"><table class="tbl" id="tblA"></table></div>
   </section>
 
@@ -126,18 +129,19 @@
     <h2>⑤ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
     <p class="muted">月給ごとに、その年齢で退職して最後までお金がもつために必要な貯蓄率(手取りに対する割合)です。</p>
     <div class="scroll"><table class="tbl" id="tblB"></table></div>
-    <p class="muted">色: 緑=30%以下 / 黄=31〜50% / 橙=51%超(かなりの節約が必要) / 赤=貯蓄率80%でも足りない</p>
+    <p class="muted">色: 緑=30%以下 / 黄=31〜50% / 橙=51%超 / <span class="bad">赤(⚠)=生活費が平均の85%を下回る無理めな設定、または貯蓄率80%でも足りない(×)</span></p>
   </section>
 
   <section class="card">
     <h2>計算の前提と注意</h2>
     <ul class="note">
       <li>これは<b>ざっくりの目安</b>です。生活費は総務省「家計調査」の傾向と大阪市内の家賃相場をもとにした<b>私たちの概算</b>で、実際は暮らし方で大きく変わります。投資・年金の専門的な助言ではありません。</li>
-      <li>手取りは額面の78〜82%で計算(月給の高さで変化)。ボーナスは「月給の何か月分」を入力した分だけ加算(初期値は0か月)。</li>
+      <li>手取りは額面の75〜82%で計算(月給が高いほど手取り率は下がる)。ボーナスは「月給の何か月分」を入力した分だけ加算(初期値は0か月)。</li>
       <li>物価上昇を除いた金額で計算します。昇給は実質の伸び率を入力した分だけ、55歳まで毎年上がる想定(初期値は0%=昇給なし)。厚生年金にも昇給・ボーナスが反映されます。</li>
       <li>年金は、国民年金(満額 月7.0万円)+厚生年金(22歳から退職まで会社員として加入、月給を平均給与として概算)。既婚の場合は配偶者の国民年金(月7.0万円)も加算。</li>
       <li>60歳前に退職する場合は、国民年金保険料(月1.7万円/人)を老後の生活費に加えています。年金は繰り上げ・繰り下げ受給の増減はしません。</li>
-      <li>既婚は「夫婦の世帯収入」を月給に入力してください。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
+      <li>既婚は「夫婦の月給の合計」を入力してください。共働きで二人とも同じ年齢に退職し、厚生年金は合計を半分ずつ・国民年金は二人分で概算します。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
+      <li>生活費は大阪の平均的な目安を初期値にしていて、自分の数字に書き換えられます(書き換えた欄は黄色)。貯蓄後に使えるお金が平均の85%を下回ると、無理めな設定として赤で警告します。</li>
       <li>入力はこの端末のブラウザにだけ保存され、外部には送信されません。</li>
     </ul>
     <p class="muted">みらいくワークス</p>
@@ -174,8 +178,8 @@ try {
 } catch(e){}
 const persistCosts = () => { try { localStorage.setItem(COST_KEY, JSON.stringify(COST)); } catch(e){} };
 const KID_COST = 4;            // 子ども1人あたり(万円/月)
-const SALARIES = [20,25,30,35,40,45];
-const TH_RATE = {20:.82,25:.81,30:.80,35:.79,40:.78,45:.78};   // 手取り率
+const PRESETS = {single:[20,25,30,35,40,45], couple:[30,40,50,60,70,80]};   // 月給の選択肢・早見表の行
+const LIMIT = 0.85;            // 使えるお金が平均の生活費のこの割合を下回ると「無理めな設定」(赤)
 const KIHON = 7.0;             // 国民年金(満額・万円/月・1人)
 const KOSEI_K = 5.481/1000;    // 厚生年金の報酬比例の乗率
 const NENKIN_HOKEN = 1.7;      // 国民年金保険料(万円/月・1人)
@@ -187,24 +191,29 @@ const costTotal = (hh, age, kids) => sum(COST[hh][decade(age)]) + (hh==="couple"
 
 // ===== 状態 =====
 const STORE_KEY = "retire-osaka";
-const DEFAULT = {hh:"single", age:30, kids:0, salary:30, rate:30, target:60, cash:0, raise:0, bonus:0, ret:2, end:95, pstart:65, retExp:""};
+const DEFAULT = {hh:"single", age:30, kids:0, salary:30, rate:20, target:60, cash:0, raise:0, bonus:0, ret:2, end:95, pstart:65, retExp:""};
 let S = {...DEFAULT};
 try { Object.assign(S, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); } catch(e){}
 const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e){} };
 
 // ===== 計算 =====
-const takeHome = salary => salary * TH_RATE[salary];   // 万円/月
+// 手取り(万円/月)。手取り率は月給20万で82%、月給が上がるほど下がる(下限75%)
+const takeHome = salary => salary * Math.min(.82, Math.max(.75, .82 - (salary-20)*.002));
+// 貯蓄後に使えるお金 ÷ 平均の生活費(1未満なら平均より節約する設定)
+const livableRatio = (p, salary, rate) =>
+  takeHome(salary)*(12+p.bonus)/12*(1-rate) / costTotal(p.hh, p.age, p.kids);
 
 // 退職年齢Rのときの年金(万円/月)。厚生年金は「平均月給×乗率×加入月数」が年額
 // 昇給の倍率(今の年齢を1として、55歳まで毎年伸びる。過去は逆算)
 const growth = (p, age) => Math.pow(1 + p.raise/100, Math.min(age,55) - p.age);
 function pension(p, R){
   const end = Math.min(R,65), months = Math.max(0, end - 22) * 12;
+  const persons = p.hh==="couple" ? 2 : 1, each = p.salary / persons;   // 既婚は共働きで合算月給を半分ずつと仮定
   let avg = 0;   // 加入期間の平均月給(ボーナス込みで月換算・上限65万円)
-  for (let y=22; y<end; y++) avg += Math.min(p.salary * growth(p,y) * (12+p.bonus)/12, 65);
+  for (let y=22; y<end; y++) avg += Math.min(each * growth(p,y) * (12+p.bonus)/12, 65);
   avg = months ? avg/(end-22) : 0;
   const kosei = avg * KOSEI_K * months / 12;
-  return KIHON + kosei + (p.hh==="couple" ? KIHON : 0);
+  return persons * (KIHON + kosei);
 }
 const retireCost = p => p.retExp !== "" && !isNaN(+p.retExp) ? +p.retExp : costTotal(p.hh, 60, 0);
 
@@ -244,7 +253,7 @@ const setVal = (id, v) => { const el = $(id); if (document.activeElement !== el)
 function buildChips(){
   $("hhChips").innerHTML = [["single","独身"],["couple","既婚(夫婦)"]]
     .map(([k,l])=>`<button class="chip ${S.hh===k?"on":""}" data-hh="${k}">${l}</button>`).join("");
-  $("salChips").innerHTML = SALARIES.map(s=>`<button class="chip ${S.salary===s?"on":""}" data-sal="${s}">${s}万円</button>`).join("");
+  $("salChips").innerHTML = PRESETS[S.hh].map(s=>`<button class="chip ${S.salary===s?"on":""}" data-sal="${s}">${s}万円</button>`).join("");
 }
 
 function clampState(){
@@ -258,7 +267,7 @@ function clampState(){
   S.ret = Math.min(6, Math.max(0, isNaN(+S.ret) ? 2 : +S.ret));
   S.end = Math.min(105, Math.max(80, +S.end||95));
   S.pstart = Math.min(75, Math.max(60, +S.pstart||65));
-  if (!SALARIES.includes(S.salary)) S.salary = 30;
+  S.salary = Math.min(200, Math.max(10, +S.salary || 30));
 }
 
 function render(){
@@ -270,6 +279,9 @@ function render(){
   $("target").min=p.age; setVal("target",p.target); $("targetV").textContent=p.target+"歳";
   setVal("raise",p.raise); $("raiseV").textContent=p.raise+"%"; setVal("bonus",p.bonus); $("bonusV").textContent=p.bonus+"か月分";
   setVal("cash",p.cash); setVal("ret",p.ret); setVal("end",p.end); setVal("pstart",p.pstart); setVal("retExp",p.retExp);
+  setVal("salary",p.salary);
+  $("salLabel").textContent = p.hh==="couple" ? "世帯の月給の合計(夫婦の額面を足した額・万円)" : "月給(額面・万円)";
+  $("salHint").textContent = p.hh==="couple" ? "夫婦とも働く想定で、二人の月給を合計して入力します。二人とも同じ年齢で退職する計算です。" : "";
   $("thNote").textContent = `月給${p.salary}万円 → 手取りは月平均約${man(th)}万円(ボーナス込み)。貯蓄率${p.rate}%なら毎月約${man(th*rate)}万円を貯めます。`;
 
   // 結果:最短の退職年齢
@@ -291,10 +303,13 @@ function render(){
   const need = needRate(p, p.target);
   $("needRes").innerHTML = `<p>${p.target}歳で退職するのに必要な貯蓄率:<b>${need===null ? "80%でも足りません" : "約"+Math.ceil(need*100)+"%(月約"+man(th*need)+"万円)"}</b></p>`;
 
-  // 生活費の目安との比較
+  // 生活費の目安との比較(平均より大幅に少ない生活になる貯蓄率は赤)
   const cost = costTotal(p.hh, p.age, p.kids), left = th*(1-rate), diff = left - cost;
-  const tone = diff>=0 ? "余裕があります" : diff>-3 ? "少し節約が必要です" : "かなりの節約が必要で、続けにくいかもしれません";
-  $("lifeRes").innerHTML = `<p>貯蓄後に使えるお金は月約${man(left)}万円。大阪の${p.age}歳前後の生活費の目安(${man(cost)}万円)と比べて、<b>${diff>=0?"+":""}${man(diff)}万円</b>(${tone})。</p>`;
+  const ratio = livableRatio(p, p.salary, rate);
+  const level = ratio>=1 ? "ok" : ratio>=LIMIT ? "warn" : "ng";
+  const tone = {ok:"平均的な生活費をまかなえます。", warn:"平均より少し節約が必要です。", ng:"⚠ 平均を大きく下回る生活費になり、無理めな設定です。貯蓄率を下げるか、退職を遅らせる検討を。"}[level];
+  $("rateV").classList.toggle("bad", level==="ng");
+  $("lifeRes").innerHTML = `<div class="big ${level}"><div>貯蓄後に使えるお金は月約${man(left)}万円。大阪の${p.age}歳前後の平均的な生活費(${man(cost)}万円)と比べて<b>${diff>=0?"+":""}${man(diff)}万円</b>(平均の${Math.round(ratio*100)}%)</div><div>${tone}</div></div>`;
 
   // 判定ストリップ
   $("strip").innerHTML = Array.from({length:70-p.age+1},(_,i)=>p.age+i).map(R=>{
@@ -326,7 +341,7 @@ function drawCost(){
   const hh = S.hh, cur = decade(S.age), decs = [20,30,40,50,60];
   if (costBuiltFor !== hh){
     let h = `<tr><th>項目</th>${decs.map(d=>`<th id="ch-${d}">${d}代</th>`).join("")}</tr>`;
-    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td><input type="number" min="0" step="0.1" data-dec="${d}" data-i="${i}" value="${COST[hh][d][i]}" aria-label="${d}代 ${c}(万円)"></td>`).join("")}</tr>`; });
+    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td><input type="number" min="0" step="0.1" class="${COST[hh][d][i]!==COST_DEFAULT[hh][d][i]?"edited":""}" data-dec="${d}" data-i="${i}" value="${COST[hh][d][i]}" aria-label="${d}代 ${c}(万円)"></td>`).join("")}</tr>`; });
     h += `<tr class="sum"><td>合計(万円)</td>${decs.map(d=>`<td id="ct-${d}"></td>`).join("")}</tr>`;
     $("costTbl").innerHTML = h;
     costBuiltFor = hh;
@@ -340,24 +355,27 @@ function drawCost(){
 function drawTables(){
   const p = S, rates=[10,20,30,40,50,60], targets=[45,50,55,60,65];
   let a = `<tr><th>月給(手取り)</th>${rates.map(r=>`<th>貯蓄率${r}%</th>`).join("")}</tr>`;
-  SALARIES.forEach(s=>{
+  const rows = PRESETS[p.hh], near = rows.reduce((m,x)=>Math.abs(x-p.salary)<Math.abs(m-p.salary)?x:m);
+  rows.forEach(s=>{
     a += `<tr><td>${s}万(${man(takeHome(s))}万)</td>` + rates.map(r=>{
       const R = earliest({...p,salary:s}, r/100);
-      const cls = R===null ? "c-ng" : R<=55 ? "c-ok" : R<=62 ? "c-mid" : "c-hard";
-      const cur = s===p.salary && Math.abs(r-p.rate)<5 ? "cur" : "";
-      return `<td class="${cls} ${cur}">${R===null?"70歳超":R+"歳"}</td>`;
+      const bad = livableRatio(p,s,r/100) < LIMIT;
+      const cls = R===null || bad ? "c-ng" : R<=55 ? "c-ok" : R<=62 ? "c-mid" : "c-hard";
+      const cur = s===near && Math.abs(r-p.rate)<5 ? "cur" : "";
+      return `<td class="${cls} ${cur}">${bad?"⚠":""}${R===null?"70歳超":R+"歳"}</td>`;
     }).join("") + "</tr>";
   });
   $("tblA").innerHTML = a;
 
   let b = `<tr><th>月給(手取り)</th>${targets.map(t=>`<th>${t}歳で退職</th>`).join("")}</tr>`;
-  SALARIES.forEach(s=>{
+  rows.forEach(s=>{
     b += `<tr><td>${s}万(${man(takeHome(s))}万)</td>` + targets.map(t=>{
       if (t < p.age) return `<td>—</td>`;
       const n = needRate({...p,salary:s}, t);
-      const cls = n===null ? "c-ng" : n<=.3 ? "c-ok" : n<=.5 ? "c-mid" : "c-hard";
-      const cur = s===p.salary && t===p.target ? "cur" : "";
-      return `<td class="${cls} ${cur}">${n===null?"×":Math.ceil(n*100)+"%"}</td>`;
+      const bad = n!==null && livableRatio(p,s,n) < LIMIT;
+      const cls = n===null || bad ? "c-ng" : n<=.3 ? "c-ok" : n<=.5 ? "c-mid" : "c-hard";
+      const cur = s===near && t===p.target ? "cur" : "";
+      return `<td class="${cls} ${cur}">${bad?"⚠":""}${n===null?"×":Math.ceil(n*100)+"%"}</td>`;
     }).join("") + "</tr>";
   });
   $("tblB").innerHTML = b;
@@ -366,11 +384,13 @@ function drawTables(){
 // ===== 操作 =====
 $("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
 $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
-["age","kids","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+["age","kids","salary","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
 $("costTbl").addEventListener("input", e=>{
   const t = e.target, d = t.dataset.dec; if (!d) return;
   const v = parseFloat(t.value);
-  COST[S.hh][d][+t.dataset.i] = isNaN(v) || v < 0 ? 0 : v;
+  const i = +t.dataset.i;
+  COST[S.hh][d][i] = isNaN(v) || v < 0 ? 0 : v;
+  t.classList.toggle("edited", COST[S.hh][d][i] !== COST_DEFAULT[S.hh][d][i]);
   persistCosts(); render();
 });
 $("costReset").addEventListener("click", ()=>{
