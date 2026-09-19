@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>大阪 退職年齢シミュレーター | みらいくワークス</title>
+<style>
+  :root{
+    --brand:#3b5bdb; --bg:#f7f8fc; --card:#fff; --text:#222; --muted:#667;
+    --ok:#2b8a3e; --okbg:#e6f6ea; --warn:#e67700; --warnbg:#fff3e0; --ng:#c92a2a; --ngbg:#fdeaea;
+    --line:#e3e6ef; --radius:14px; --shadow:0 2px 12px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.7}
+  header{display:flex;align-items:center;gap:.5em;padding:1em 1.2em;max-width:860px;margin:0 auto}
+  header h1{font-size:1.2rem;margin:0}
+  main{max-width:860px;margin:0 auto;padding:0 1.2em 3em}
+  h2{font-size:1.05rem;margin:0 0 .6em}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);
+    padding:1.3em;margin-bottom:1.2em}
+  label{display:block;font-weight:600;margin:.9em 0 .3em}
+  input,select{width:100%;padding:.6em;border:1px solid #ccd;border-radius:10px;font-size:1rem;
+    background:var(--card);color:var(--text)}
+  input[type=range]{padding:0}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 1em}
+  @media (max-width:600px){.grid{grid-template-columns:1fr}}
+  .chips{display:flex;flex-wrap:wrap;gap:.5em}
+  .chip{flex:1 1 auto;min-width:4.2em;background:var(--card);color:var(--text);border:2px solid var(--line);
+    border-radius:10px;padding:.6em .4em;font-size:1rem;cursor:pointer;text-align:center}
+  .chip.on{background:var(--brand);border-color:var(--brand);color:#fff;font-weight:700}
+  .muted{color:var(--muted);font-size:.88rem}
+  .val{font-weight:700;color:var(--brand)}
+  .big{border-radius:var(--radius);padding:1.1em 1.2em;margin-bottom:.8em}
+  .big .n{font-size:1.7rem;font-weight:800;line-height:1.3}
+  .ok{background:var(--okbg);color:var(--ok)} .warn{background:var(--warnbg);color:var(--warn)} .ng{background:var(--ngbg);color:var(--ng)}
+  .strip{display:flex;flex-wrap:wrap;gap:3px;margin:.4em 0}
+  .strip span{width:2.9em;text-align:center;font-size:.78rem;border-radius:5px;padding:.2em 0;font-weight:600}
+  .tbl{width:100%;border-collapse:collapse;font-size:.92rem}
+  .tbl th,.tbl td{border:1px solid var(--line);padding:.4em .5em;text-align:right}
+  .tbl th{background:#eef1fa;text-align:center;font-weight:600}
+  .tbl td:first-child,.tbl th:first-child{text-align:left}
+  .tbl tr.sum td{font-weight:800;background:#f3f5fc}
+  .scroll{overflow-x:auto}
+  .cur{outline:3px solid var(--brand);outline-offset:-3px}
+  .c-ok{background:var(--okbg)} .c-mid{background:#fff8db} .c-hard{background:var(--warnbg)} .c-ng{background:var(--ngbg);color:var(--ng)}
+  svg{width:100%;height:auto;display:block}
+  ul.note{padding-left:1.2em;margin:.3em 0} ul.note li{margin:.2em 0}
+  @media (prefers-color-scheme:dark){
+    :root{--bg:#16181d;--card:#22252c;--text:#eef;--muted:#99a;--line:#3a3d46;
+      --okbg:#173a22;--ok:#7fdc95;--warnbg:#3d2c12;--warn:#ffb454;--ngbg:#421b1b;--ng:#ff8b8b}
+    input,select{background:#1a1c22;color:#eef;border-color:#3a3d46}
+    .tbl th{background:#2b2f3a} .tbl tr.sum td{background:#2b2f3a} .c-mid{background:#3b3712}
+  }
+</style>
+</head>
+<body>
+<header>
+  <span aria-hidden="true">🐻</span>
+  <h1>大阪 退職年齢シミュレーター</h1>
+</header>
+<main>
+
+  <section class="card">
+    <h2>① あなたの条件</h2>
+    <label>世帯のタイプ</label>
+    <div class="chips" id="hhChips"></div>
+    <div class="grid">
+      <div><label>今の年齢:<span class="val" id="ageV"></span></label><input type="range" id="age" min="20" max="64" step="1"></div>
+      <div id="kidsBox"><label>子ども(人数):<span class="val" id="kidsV"></span></label><input type="range" id="kids" min="0" max="3" step="1"></div>
+    </div>
+    <label>月給(額面)</label>
+    <div class="chips" id="salChips"></div>
+    <p class="muted" id="thNote"></p>
+    <label>貯蓄率(手取りのうち貯める割合):<span class="val" id="rateV"></span></label>
+    <input type="range" id="rate" min="0" max="80" step="1">
+    <label>退職したい年齢:<span class="val" id="targetV"></span></label>
+    <input type="range" id="target" min="30" max="70" step="1">
+    <details style="margin-top:1em"><summary>くわしい設定(そのままでOK)</summary>
+      <div class="grid">
+        <div><label>今の貯金・投資(万円)</label><input type="number" id="cash" min="0" step="10"></div>
+        <div><label>運用の実質利回り(%/年)</label><input type="number" id="ret" min="0" max="6" step="0.5"></div>
+        <div><label>何歳までのお金を用意するか</label><input type="number" id="end" min="80" max="105" step="1"></div>
+        <div><label>年金を受け取り始める年齢</label><input type="number" id="pstart" min="60" max="75" step="1"></div>
+        <div><label>老後の毎月の生活費(万円・空欄=目安)</label><input type="number" id="retExp" min="0" step="0.5" placeholder="自動"></div>
+      </div>
+      <p class="muted">「実質利回り」は物価上昇を引いた後の運用成績です。2%は、たとえば運用4%−物価2%のイメージ。</p>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2>② 結果</h2>
+    <div id="mainRes"></div>
+    <div id="targetRes"></div>
+    <div id="needRes"></div>
+    <div id="lifeRes"></div>
+    <p class="muted" style="margin-top:1em">退職年齢ごとの判定(緑=その年齢で退職しても最後までお金がもつ)</p>
+    <div class="strip" id="strip"></div>
+  </section>
+
+  <section class="card">
+    <h2>③ お金の増え方・減り方</h2>
+    <p class="muted">「退職したい年齢」で辞めた場合の資産の推移です(万円・物価上昇を除いた金額)。</p>
+    <div id="chart"></div>
+  </section>
+
+  <section class="card">
+    <h2>④ 大阪の生活費の目安(月額)</h2>
+    <p class="muted" id="costNote"></p>
+    <div class="scroll"><table class="tbl" id="costTbl"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>⑤ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
+    <p class="muted">今の年齢・世帯・貯金などは上の条件のまま、月給と貯蓄率だけ変えた表です。青い枠が今の設定に近いマス。</p>
+    <div class="scroll"><table class="tbl" id="tblA"></table></div>
+  </section>
+
+  <section class="card">
+    <h2>⑥ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
+    <p class="muted">月給ごとに、その年齢で退職して最後までお金がもつために必要な貯蓄率(手取りに対する割合)です。</p>
+    <div class="scroll"><table class="tbl" id="tblB"></table></div>
+    <p class="muted">色: 緑=30%以下 / 黄=31〜50% / 橙=51%超(かなりの節約が必要) / 赤=貯蓄率80%でも足りない</p>
+  </section>
+
+  <section class="card">
+    <h2>計算の前提と注意</h2>
+    <ul class="note">
+      <li>これは<b>ざっくりの目安</b>です。生活費は総務省「家計調査」の傾向と大阪市内の家賃相場をもとにした<b>私たちの概算</b>で、実際は暮らし方で大きく変わります。投資・年金の専門的な助言ではありません。</li>
+      <li>手取りは額面の78〜82%で計算(月給の高さで変化)。ボーナスは含めていません。</li>
+      <li>物価上昇を除いた金額で計算し、給料は上がらない前提です(実際は昇給があればもっと有利)。</li>
+      <li>年金は、国民年金(満額 月7.0万円)+厚生年金(22歳から退職まで会社員として加入、月給を平均給与として概算)。既婚の場合は配偶者の国民年金(月7.0万円)も加算。</li>
+      <li>60歳前に退職する場合は、国民年金保険料(月1.7万円/人)を老後の生活費に加えています。年金は繰り上げ・繰り下げ受給の増減はしません。</li>
+      <li>既婚は「夫婦の世帯収入」を月給に入力してください。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
+      <li>入力はこの端末のブラウザにだけ保存され、外部には送信されません。</li>
+    </ul>
+    <p class="muted">みらいくワークス</p>
+  </section>
+</main>
+
+<script>
+// ===== 大阪の生活費の目安(月額・万円)=====
+const CATS = ["家賃","食費","水道光熱","通信","交通","日用品・被服","保険・医療","趣味・交際","その他"];
+const COST = {
+  single: {
+    20:[5.8,4.5,1.0,1.0,0.8,1.5,0.7,3.0,1.0],
+    30:[6.5,4.8,1.1,1.0,0.9,1.6,1.0,3.0,1.2],
+    40:[6.5,5.0,1.2,1.0,1.0,1.6,1.3,3.0,1.3],
+    50:[6.5,5.2,1.3,1.0,1.0,1.6,1.8,3.0,1.5],
+    60:[5.5,5.0,1.4,0.9,0.8,1.3,2.5,2.5,1.5]
+  },
+  couple: {
+    20:[8.0,7.0,1.6,1.6,1.2,2.5,1.2,4.5,1.5],
+    30:[9.5,7.5,1.7,1.8,1.5,2.8,1.8,4.5,2.0],
+    40:[10.0,8.0,1.8,1.8,1.8,3.0,2.3,4.5,2.5],
+    50:[10.0,8.5,2.0,1.8,1.8,3.0,3.0,4.5,3.0],
+    60:[8.0,8.0,2.1,1.6,1.4,2.5,4.0,4.0,3.0]
+  }
+};
+const KID_COST = 4;            // 子ども1人あたり(万円/月)
+const SALARIES = [20,25,30,35,40,45];
+const TH_RATE = {20:.82,25:.81,30:.80,35:.79,40:.78,45:.78};   // 手取り率
+const KIHON = 7.0;             // 国民年金(満額・万円/月・1人)
+const KOSEI_K = 5.481/1000;    // 厚生年金の報酬比例の乗率
+const NENKIN_HOKEN = 1.7;      // 国民年金保険料(万円/月・1人)
+const MAX_RATE = 0.8;
+
+const decade = a => Math.min(60, Math.max(20, Math.floor(a/10)*10));
+const sum = arr => arr.reduce((s,x)=>s+x,0);
+const costTotal = (hh, age, kids) => sum(COST[hh][decade(age)]) + (hh==="couple" ? kids*KID_COST : 0);
+
+// ===== 状態 =====
+const STORE_KEY = "retire-osaka";
+const DEFAULT = {hh:"single", age:30, kids:0, salary:30, rate:30, target:60, cash:0, ret:2, end:95, pstart:65, retExp:""};
+let S = {...DEFAULT};
+try { Object.assign(S, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); } catch(e){}
+const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e){} };
+
+// ===== 計算 =====
+const takeHome = salary => salary * TH_RATE[salary];   // 万円/月
+
+// 退職年齢Rのときの年金(万円/月)。厚生年金は「平均月給×乗率×加入月数」が年額
+function pension(p, R){
+  const months = Math.max(0, Math.min(R,65) - 22) * 12;
+  const kosei = Math.min(p.salary, 65) * KOSEI_K * months / 12;
+  return KIHON + kosei + (p.hh==="couple" ? KIHON : 0);
+}
+const retireCost = p => p.retExp !== "" && !isNaN(+p.retExp) ? +p.retExp : costTotal(p.hh, 60, 0);
+
+// 資産の推移をシミュレーション(単位:万円)
+function simulate(p, R, rate){
+  const g = 1 + p.ret/100, save = takeHome(p.salary)*rate*12;
+  const pen = pension(p, R), people = p.hh==="couple" ? 2 : 1, base = retireCost(p);
+  let a = p.cash;
+  const traj = [{age:p.age, v:a}];
+  for (let age=p.age; age<R; age++){ a = a*g + save; traj.push({age:age+1, v:a}); }
+  for (let age=R; age<p.end; age++){
+    const spend = (base + (age<60 ? NENKIN_HOKEN*people : 0))*12 - (age>=p.pstart ? pen*12 : 0);
+    a = a*g - spend;
+    if (a < 0){ traj.push({age:age+1, v:0}); return {ok:false, depAge:age, traj, pen}; }
+    traj.push({age:age+1, v:a});
+  }
+  return {ok:true, final:a, traj, pen};
+}
+const earliest = (p, rate) => {
+  for (let R=p.age; R<=70; R++) if (simulate(p,R,rate).ok) return R;
+  return null;
+};
+// 退職年齢Rに必要な最小の貯蓄率(なければnull)
+function needRate(p, R){
+  if (!simulate(p,R,MAX_RATE).ok) return null;
+  let lo=0, hi=MAX_RATE;
+  for (let i=0;i<30;i++){ const m=(lo+hi)/2; simulate(p,R,m).ok ? hi=m : lo=m; }
+  return hi;
+}
+
+// ===== 画面 =====
+const $ = id => document.getElementById(id);
+const man = x => (Math.round(x*10)/10).toString();
+// 入力中の欄は上書きしない(打っている途中で値が変わるのを防ぐ)
+const setVal = (id, v) => { const el = $(id); if (document.activeElement !== el) el.value = v; };
+
+function buildChips(){
+  $("hhChips").innerHTML = [["single","独身"],["couple","既婚(夫婦)"]]
+    .map(([k,l])=>`<button class="chip ${S.hh===k?"on":""}" data-hh="${k}">${l}</button>`).join("");
+  $("salChips").innerHTML = SALARIES.map(s=>`<button class="chip ${S.salary===s?"on":""}" data-sal="${s}">${s}万円</button>`).join("");
+}
+
+function clampState(){
+  S.age = Math.min(64, Math.max(20, +S.age||30));
+  S.target = Math.min(70, Math.max(S.age, +S.target||60));
+  S.kids = S.hh==="couple" ? Math.min(3, Math.max(0, +S.kids||0)) : 0;
+  S.rate = Math.min(80, Math.max(0, +S.rate||0));
+  S.cash = Math.max(0, +S.cash||0);
+  S.ret = Math.min(6, Math.max(0, isNaN(+S.ret) ? 2 : +S.ret));
+  S.end = Math.min(105, Math.max(80, +S.end||95));
+  S.pstart = Math.min(75, Math.max(60, +S.pstart||65));
+  if (!SALARIES.includes(S.salary)) S.salary = 30;
+}
+
+function render(){
+  clampState(); persist(); buildChips();
+  const p = S, rate = p.rate/100, th = takeHome(p.salary);
+  setVal("age",p.age); $("ageV").textContent=p.age+"歳";
+  setVal("kids",p.kids); $("kidsV").textContent=p.kids+"人"; $("kidsBox").style.display = p.hh==="couple" ? "" : "none";
+  setVal("rate",p.rate); $("rateV").textContent=p.rate+"%";
+  $("target").min=p.age; setVal("target",p.target); $("targetV").textContent=p.target+"歳";
+  setVal("cash",p.cash); setVal("ret",p.ret); setVal("end",p.end); setVal("pstart",p.pstart); setVal("retExp",p.retExp);
+  $("thNote").textContent = `月給${p.salary}万円 → 手取りは約${man(th)}万円。貯蓄率${p.rate}%なら毎月約${man(th*rate)}万円を貯めます。`;
+
+  // 結果:最短の退職年齢
+  const best = earliest(p, rate);
+  if (best === null){
+    $("mainRes").innerHTML = `<div class="big ng"><div>この条件だと</div><div class="n">70歳までの退職は難しい</div><div>貯蓄率を上げるか、老後の生活費・退職年齢の見直しを。</div></div>`;
+  } else if (best === p.age){
+    $("mainRes").innerHTML = `<div class="big ok"><div>この条件なら</div><div class="n">今すぐ退職しても${p.end}歳までもちます</div></div>`;
+  } else {
+    $("mainRes").innerHTML = `<div class="big ${best<=60?"ok":"warn"}"><div>この条件なら、最短で</div><div class="n">${best}歳で退職OK</div><div>あと${best-p.age}年働けば、${p.end}歳までお金がもちます。</div></div>`;
+  }
+
+  // 結果:希望の退職年齢
+  const r = simulate(p, p.target, rate);
+  $("targetRes").innerHTML = r.ok
+    ? `<div class="big ok"><div>${p.target}歳で退職 → <b>大丈夫です</b></div><div>${p.end}歳時点で約${Math.round(r.final).toLocaleString()}万円残ります。年金は月約${man(r.pen)}万円の見込み。</div></div>`
+    : `<div class="big ng"><div>${p.target}歳で退職 → <b>${r.depAge}歳でお金が尽きる見込み</b></div><div>年金は月約${man(r.pen)}万円の見込み。下の必要貯蓄率を参考に。</div></div>`;
+
+  const need = needRate(p, p.target);
+  $("needRes").innerHTML = `<p>${p.target}歳で退職するのに必要な貯蓄率:<b>${need===null ? "80%でも足りません" : "約"+Math.ceil(need*100)+"%(月約"+man(th*need)+"万円)"}</b></p>`;
+
+  // 生活費の目安との比較
+  const cost = costTotal(p.hh, p.age, p.kids), left = th*(1-rate), diff = left - cost;
+  const tone = diff>=0 ? "余裕があります" : diff>-3 ? "少し節約が必要です" : "かなりの節約が必要で、続けにくいかもしれません";
+  $("lifeRes").innerHTML = `<p>貯蓄後に使えるお金は月約${man(left)}万円。大阪の${p.age}歳前後の生活費の目安(${man(cost)}万円)と比べて、<b>${diff>=0?"+":""}${man(diff)}万円</b>(${tone})。</p>`;
+
+  // 判定ストリップ
+  $("strip").innerHTML = Array.from({length:70-p.age+1},(_,i)=>p.age+i).map(R=>{
+    const ok = simulate(p,R,rate).ok;
+    return `<span class="${ok?"ok":"ng"}">${R}${ok?"✓":"×"}</span>`;
+  }).join("");
+
+  drawChart(r, p.target);
+  drawCost(); drawTables();
+}
+
+function drawChart(r, R){
+  const W=640, H=260, L=52, B=28, T=14, Rr=12, pts=r.traj;
+  const maxV = Math.max(100, ...pts.map(q=>q.v))*1.08, a0=pts[0].age, a1=pts[pts.length-1].age;
+  const x = a => L + (a-a0)/(a1-a0||1)*(W-L-Rr), y = v => H-B - v/maxV*(H-B-T);
+  const color = r.ok ? "#2b8a3e" : "#c92a2a";
+  const d = pts.map((q,i)=>(i?"L":"M")+x(q.age).toFixed(1)+","+y(q.v).toFixed(1)).join("");
+  let grid="";
+  for (let i=0;i<=4;i++){ const v=maxV*i/4; grid+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" opacity=".12"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="currentColor" opacity=".7">${Math.round(v).toLocaleString()}</text>`; }
+  for (let a=Math.ceil(a0/10)*10; a<=a1; a+=10) grid+=`<text x="${x(a)}" y="${H-8}" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">${a}歳</text>`;
+  $("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="資産の推移グラフ">${grid}
+    <line x1="${x(R)}" x2="${x(R)}" y1="${T}" y2="${H-B}" stroke="${color}" stroke-dasharray="4 4"/>
+    <text x="${x(R)}" y="${T+10}" text-anchor="middle" font-size="11" fill="${color}">${R}歳で退職</text>
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="3"/></svg>`;
+}
+
+function drawCost(){
+  const hh = S.hh, cur = decade(S.age), decs = [20,30,40,50,60];
+  let h = `<tr><th>項目</th>${decs.map(d=>`<th class="${d===cur?"cur":""}">${d}代</th>`).join("")}</tr>`;
+  CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td>${man(COST[hh][d][i])}万</td>`).join("")}</tr>`; });
+  h += `<tr class="sum"><td>合計</td>${decs.map(d=>`<td>${man(sum(COST[hh][d]))}万</td>`).join("")}</tr>`;
+  $("costTbl").innerHTML = h;
+  $("costNote").textContent = hh==="single"
+    ? "独身・大阪市内でひとり暮らし(賃貸)の目安。60代は家賃が安い/持ち家寄りで計算。"
+    : `既婚は夫婦2人(子どもなし)の目安。子どもは1人あたり月${KID_COST}万円を加算(今の設定:${S.kids}人)。`;
+}
+
+function drawTables(){
+  const p = S, rates=[10,20,30,40,50,60], targets=[45,50,55,60,65];
+  let a = `<tr><th>月給(手取り)</th>${rates.map(r=>`<th>貯蓄率${r}%</th>`).join("")}</tr>`;
+  SALARIES.forEach(s=>{
+    a += `<tr><td>${s}万(${man(takeHome(s))}万)</td>` + rates.map(r=>{
+      const R = earliest({...p,salary:s}, r/100);
+      const cls = R===null ? "c-ng" : R<=55 ? "c-ok" : R<=62 ? "c-mid" : "c-hard";
+      const cur = s===p.salary && Math.abs(r-p.rate)<5 ? "cur" : "";
+      return `<td class="${cls} ${cur}">${R===null?"70歳超":R+"歳"}</td>`;
+    }).join("") + "</tr>";
+  });
+  $("tblA").innerHTML = a;
+
+  let b = `<tr><th>月給(手取り)</th>${targets.map(t=>`<th>${t}歳で退職</th>`).join("")}</tr>`;
+  SALARIES.forEach(s=>{
+    b += `<tr><td>${s}万(${man(takeHome(s))}万)</td>` + targets.map(t=>{
+      if (t < p.age) return `<td>—</td>`;
+      const n = needRate({...p,salary:s}, t);
+      const cls = n===null ? "c-ng" : n<=.3 ? "c-ok" : n<=.5 ? "c-mid" : "c-hard";
+      const cur = s===p.salary && t===p.target ? "cur" : "";
+      return `<td class="${cls} ${cur}">${n===null?"×":Math.ceil(n*100)+"%"}</td>`;
+    }).join("") + "</tr>";
+  });
+  $("tblB").innerHTML = b;
+}
+
+// ===== 操作 =====
+$("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
+$("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
+["age","kids","rate","target","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+render();
+</script>
+</body>
+</html>
