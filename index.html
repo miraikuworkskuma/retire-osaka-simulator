@@ -42,6 +42,7 @@
   .tbl td:first-child,.tbl th:first-child{text-align:left}
   .tbl tr.sum td{font-weight:800;background:#f3f5fc}
   .scroll{overflow-x:auto}
+  .tbl input{width:4.6em;padding:.25em .3em;text-align:right;border-radius:6px}
   .cur{outline:3px solid var(--brand);outline-offset:-3px}
   .c-ok{background:var(--okbg)} .c-mid{background:#fff8db} .c-hard{background:var(--warnbg)} .c-ng{background:var(--ngbg);color:var(--ng)}
   svg{width:100%;height:auto;display:block}
@@ -81,13 +82,19 @@
     <input type="range" id="rate" min="0" max="80" step="1">
     <label>退職したい年齢:<span class="val" id="targetV"></span></label>
     <input type="range" id="target" min="30" max="70" step="1">
+    <details open style="margin-top:1em"><summary><b>生活費(家賃・食費など)を自分に合わせて変える</b></summary>
+      <p class="muted" id="costNote"></p>
+      <div class="scroll"><table class="tbl" id="costTbl"></table></div>
+      <p class="muted">青枠は今の年齢の列で、「貯蓄後に使えるお金」との比較に使います。<b>60代の合計は老後の生活費</b>として退職後の計算に使われ、数字を変えると下の結果・グラフ・早見表がすぐ変わります。</p>
+      <button type="button" class="chip" id="costReset" style="flex:none;font-size:.9rem">この世帯の生活費を初期値に戻す</button>
+    </details>
     <details style="margin-top:1em"><summary>くわしい設定(そのままでOK)</summary>
       <div class="grid">
         <div><label>今の貯金・投資(万円)</label><input type="number" id="cash" min="0" step="10"></div>
         <div><label>運用の実質利回り(%/年)</label><input type="number" id="ret" min="0" max="6" step="0.5"></div>
         <div><label>何歳までのお金を用意するか</label><input type="number" id="end" min="80" max="105" step="1"></div>
         <div><label>年金を受け取り始める年齢</label><input type="number" id="pstart" min="60" max="75" step="1"></div>
-        <div><label>老後の毎月の生活費(万円・空欄=目安)</label><input type="number" id="retExp" min="0" step="0.5" placeholder="自動"></div>
+        <div><label>老後の毎月の生活費(万円・空欄=上の60代の合計)</label><input type="number" id="retExp" min="0" step="0.5" placeholder="自動"></div>
       </div>
       <p class="muted">「実質利回り」は物価上昇を引いた後の運用成績です。2%は、たとえば運用4%−物価2%のイメージ。</p>
     </details>
@@ -110,19 +117,13 @@
   </section>
 
   <section class="card">
-    <h2>④ 大阪の生活費の目安(月額)</h2>
-    <p class="muted" id="costNote"></p>
-    <div class="scroll"><table class="tbl" id="costTbl"></table></div>
-  </section>
-
-  <section class="card">
-    <h2>⑤ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
+    <h2>④ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
     <p class="muted">今の年齢・世帯・貯金などは上の条件のまま、月給と貯蓄率だけ変えた表です。青い枠が今の設定に近いマス。</p>
     <div class="scroll"><table class="tbl" id="tblA"></table></div>
   </section>
 
   <section class="card">
-    <h2>⑥ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
+    <h2>⑤ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
     <p class="muted">月給ごとに、その年齢で退職して最後までお金がもつために必要な貯蓄率(手取りに対する割合)です。</p>
     <div class="scroll"><table class="tbl" id="tblB"></table></div>
     <p class="muted">色: 緑=30%以下 / 黄=31〜50% / 橙=51%超(かなりの節約が必要) / 赤=貯蓄率80%でも足りない</p>
@@ -162,6 +163,16 @@ const COST = {
     60:[8.0,8.0,2.1,1.6,1.4,2.5,4.0,4.0,3.0]
   }
 };
+const COST_DEFAULT = JSON.parse(JSON.stringify(COST));
+const COST_KEY = "retire-osaka-costs";   // 自分用に変えた生活費(端末内にだけ保存)
+try {
+  const saved = JSON.parse(localStorage.getItem(COST_KEY) || "{}");
+  for (const hh in COST) for (const d in COST[hh]) {
+    const arr = saved[hh] && saved[hh][d];
+    if (Array.isArray(arr) && arr.length === CATS.length && arr.every(x => typeof x === "number" && x >= 0)) COST[hh][d] = arr;
+  }
+} catch(e){}
+const persistCosts = () => { try { localStorage.setItem(COST_KEY, JSON.stringify(COST)); } catch(e){} };
 const KID_COST = 4;            // 子ども1人あたり(万円/月)
 const SALARIES = [20,25,30,35,40,45];
 const TH_RATE = {20:.82,25:.81,30:.80,35:.79,40:.78,45:.78};   // 手取り率
@@ -310,15 +321,20 @@ function drawChart(r, R){
     <path d="${d}" fill="none" stroke="${color}" stroke-width="3"/></svg>`;
 }
 
+let costBuiltFor = "";   // 表を作り直すのは世帯を切り替えたときだけ(入力中に欄が消えないように)
 function drawCost(){
   const hh = S.hh, cur = decade(S.age), decs = [20,30,40,50,60];
-  let h = `<tr><th>項目</th>${decs.map(d=>`<th class="${d===cur?"cur":""}">${d}代</th>`).join("")}</tr>`;
-  CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td>${man(COST[hh][d][i])}万</td>`).join("")}</tr>`; });
-  h += `<tr class="sum"><td>合計</td>${decs.map(d=>`<td>${man(sum(COST[hh][d]))}万</td>`).join("")}</tr>`;
-  $("costTbl").innerHTML = h;
+  if (costBuiltFor !== hh){
+    let h = `<tr><th>項目</th>${decs.map(d=>`<th id="ch-${d}">${d}代</th>`).join("")}</tr>`;
+    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td><input type="number" min="0" step="0.1" data-dec="${d}" data-i="${i}" value="${COST[hh][d][i]}" aria-label="${d}代 ${c}(万円)"></td>`).join("")}</tr>`; });
+    h += `<tr class="sum"><td>合計(万円)</td>${decs.map(d=>`<td id="ct-${d}"></td>`).join("")}</tr>`;
+    $("costTbl").innerHTML = h;
+    costBuiltFor = hh;
+  }
+  decs.forEach(d=>{ $("ct-"+d).textContent = man(sum(COST[hh][d])); $("ch-"+d).className = d===cur ? "cur" : ""; });
   $("costNote").textContent = hh==="single"
-    ? "独身・大阪市内でひとり暮らし(賃貸)の目安。60代は家賃が安い/持ち家寄りで計算。"
-    : `既婚は夫婦2人(子どもなし)の目安。子どもは1人あたり月${KID_COST}万円を加算(今の設定:${S.kids}人)。`;
+    ? "独身・大阪市内で一人暮らし(賃貸)の月額の目安(万円)。自分の家賃・食費に合わせて書き換えてください。"
+    : `夫婦2人(子どもなし)の月額の目安(万円)。子どもは1人あたり月${KID_COST}万円が別に加算されます(今の設定:${S.kids}人)。`;
 }
 
 function drawTables(){
@@ -351,6 +367,16 @@ function drawTables(){
 $("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
 $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
 ["age","kids","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+$("costTbl").addEventListener("input", e=>{
+  const t = e.target, d = t.dataset.dec; if (!d) return;
+  const v = parseFloat(t.value);
+  COST[S.hh][d][+t.dataset.i] = isNaN(v) || v < 0 ? 0 : v;
+  persistCosts(); render();
+});
+$("costReset").addEventListener("click", ()=>{
+  for (const d in COST[S.hh]) COST[S.hh][d] = [...COST_DEFAULT[S.hh][d]];
+  persistCosts(); costBuiltFor = ""; render();
+});
 render();
 </script>
 </body>
