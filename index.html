@@ -41,6 +41,7 @@
   .tbl th{background:#eef1fa;text-align:center;font-weight:600}
   .tbl td:first-child,.tbl th:first-child{text-align:left}
   .tbl tr.sum td{font-weight:800;background:#f3f5fc}
+  .tbl tr.nisa td{background:#eef7ee}
   .scroll{overflow-x:auto}
   .tbl input{width:4.6em;padding:.25em .3em;text-align:right;border-radius:6px}
   .cur{outline:3px solid var(--brand);outline-offset:-3px}
@@ -52,7 +53,7 @@
     :root{--bg:#16181d;--card:#22252c;--text:#eef;--muted:#99a;--line:#3a3d46;
       --okbg:#173a22;--ok:#7fdc95;--warnbg:#3d2c12;--warn:#ffb454;--ngbg:#421b1b;--ng:#ff8b8b}
     input,select{background:#1a1c22;color:#eef;border-color:#3a3d46}
-    .tbl th{background:#2b2f3a} .tbl tr.sum td{background:#2b2f3a} .c-mid{background:#3b3712}
+    .tbl th{background:#2b2f3a} .tbl tr.sum td{background:#2b2f3a} .tbl tr.nisa td{background:#1e2e22} .c-mid{background:#3b3712}
   }
 </style>
 </head>
@@ -108,6 +109,7 @@
     <div id="mainRes"></div>
     <div id="targetRes"></div>
     <div id="needRes"></div>
+    <div id="nisaRes"></div>
     <div id="lifeRes"></div>
     <p class="muted" style="margin-top:1em">退職年齢ごとの判定(緑=その年齢で退職しても最後までお金がもつ)</p>
     <div class="strip" id="strip"></div>
@@ -142,6 +144,7 @@
       <li>60歳前に退職する場合は、国民年金保険料(月1.7万円/人)を老後の生活費に加えています。年金は繰り上げ・繰り下げ受給の増減はしません。</li>
       <li>既婚は「夫婦の月給の合計」を入力してください。共働きで二人とも同じ年齢に退職し、厚生年金は合計を半分ずつ・国民年金は二人分で概算します。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
       <li>生活費は大阪の平均的な目安を初期値にしていて、自分の数字に書き換えられます(書き換えた欄は黄色)。貯蓄後に使えるお金が平均の85%を下回ると、無理めな設定として赤で警告します。</li>
+      <li>NISA積立は貯蓄の一部として計算します(貯蓄額を超える分は積み立てません)。新NISAの上限(年360万円・生涯1,800万円)まで。NISAは運用益が非課税、それ以外の運用益には約20%課税として計算し、老後は課税口座→NISAの順に取り崩します。</li>
       <li>入力はこの端末のブラウザにだけ保存され、外部には送信されません。</li>
     </ul>
     <p class="muted">みらいくワークス</p>
@@ -177,6 +180,17 @@ try {
   }
 } catch(e){}
 const persistCosts = () => { try { localStorage.setItem(COST_KEY, JSON.stringify(COST)); } catch(e){} };
+// NISA積立(万円/月)。貯蓄の一部で、生活費には含めない。60代は積立しない
+const NISA_DEFAULT = {single:{20:1,30:2,40:3,50:3,60:0}, couple:{20:2,30:4,40:5,50:5,60:0}};
+const NISA = JSON.parse(JSON.stringify(NISA_DEFAULT));
+const NISA_KEY = "retire-osaka-nisa";
+try {
+  const saved = JSON.parse(localStorage.getItem(NISA_KEY) || "{}");
+  for (const hh in NISA) for (const d in NISA[hh]) { const v = saved[hh] && saved[hh][d]; if (typeof v === "number" && v >= 0) NISA[hh][d] = v; }
+} catch(e){}
+const persistNisa = () => { try { localStorage.setItem(NISA_KEY, JSON.stringify(NISA)); } catch(e){} };
+const NISA_YEAR_CAP = 360, NISA_LIFE_CAP = 1800;   // 新NISAの年間・生涯の投資上限(万円)
+const TAX = 0.20315;                                // NISA以外の運用益にかかる税率
 const KID_COST = 4;            // 子ども1人あたり(万円/月)
 const PRESETS = {single:[20,25,30,35,40,45], couple:[30,40,50,60,70,80]};   // 月給の選択肢・早見表の行
 const LIMIT = 0.85;            // 使えるお金が平均の生活費のこの割合を下回ると「無理めな設定」(赤)
@@ -217,20 +231,27 @@ function pension(p, R){
 }
 const retireCost = p => p.retExp !== "" && !isNaN(+p.retExp) ? +p.retExp : costTotal(p.hh, 60, 0);
 
-// 資産の推移をシミュレーション(単位:万円)
+// 資産の推移をシミュレーション(単位:万円)。NISAは運用益が非課税、それ以外は運用益に約20%課税
 function simulate(p, R, rate){
-  const g = 1 + p.ret/100, yearTH = takeHome(p.salary)*(12+p.bonus);
+  const g = 1 + p.ret/100, gt = 1 + p.ret*(1-TAX)/100, yearTH = takeHome(p.salary)*(12+p.bonus);
   const pen = pension(p, R), people = p.hh==="couple" ? 2 : 1, base = retireCost(p);
-  let a = p.cash;
-  const traj = [{age:p.age, v:a}];
-  for (let age=p.age; age<R; age++){ a = a*g + yearTH*growth(p,age)*rate; traj.push({age:age+1, v:a}); }
+  let n = 0, t = p.cash, basis = 0;   // n=NISA口座 t=それ以外 basis=NISAへの積立累計
+  const traj = [{age:p.age, v:t}];
+  for (let age=p.age; age<R; age++){
+    const sv = yearTH*growth(p,age)*rate;
+    const nisa = Math.max(0, Math.min(NISA[p.hh][decade(age)]*12, sv, NISA_YEAR_CAP, NISA_LIFE_CAP - basis));
+    basis += nisa;
+    n = n*g + nisa; t = t*gt + (sv - nisa);
+    traj.push({age:age+1, v:n+t});
+  }
   for (let age=R; age<p.end; age++){
     const spend = (base + (age<60 ? NENKIN_HOKEN*people : 0))*12 - (age>=p.pstart ? pen*12 : 0);
-    a = a*g - spend;
-    if (a < 0){ traj.push({age:age+1, v:0}); return {ok:false, depAge:age, traj, pen}; }
-    traj.push({age:age+1, v:a});
+    n *= g; t = t*gt - spend;
+    if (t < 0){ n += t; t = 0; }      // 課税口座から先に使い、足りなければNISAを取り崩す
+    if (n < 0){ traj.push({age:age+1, v:0}); return {ok:false, depAge:age, traj, pen, basis}; }
+    traj.push({age:age+1, v:n+t});
   }
-  return {ok:true, final:a, traj, pen};
+  return {ok:true, final:n+t, traj, pen, basis};
 }
 const earliest = (p, rate) => {
   for (let R=p.age; R<=70; R++) if (simulate(p,R,rate).ok) return R;
@@ -301,6 +322,8 @@ function render(){
     : `<div class="big ng"><div>${p.target}歳で退職 → <b>${r.depAge}歳でお金が尽きる見込み</b></div><div>年金は月約${man(r.pen)}万円の見込み。下の必要貯蓄率を参考に。</div></div>`;
 
   const need = needRate(p, p.target);
+  const nisaNow = NISA[p.hh][decade(p.age)] , saving = th*rate;
+  $("nisaRes").innerHTML = decade(p.age) === 60 ? "" : `<p class="muted">NISA積立(今の年代): 月${man(nisaNow)}万円(貯蓄月${man(saving)}万円のうち${nisaNow > saving ? "。<b class=bad>貯蓄額を超える分は積み立てられません</b>" : ""})。${p.target}歳までのNISA積立は生涯で約${Math.round(r.basis).toLocaleString()}万円(上限${NISA_LIFE_CAP.toLocaleString()}万円)。</p>`;
   $("needRes").innerHTML = `<p>${p.target}歳で退職するのに必要な貯蓄率:<b>${need===null ? "80%でも足りません" : "約"+Math.ceil(need*100)+"%(月約"+man(th*need)+"万円)"}</b></p>`;
 
   // 生活費の目安との比較(平均より大幅に少ない生活になる貯蓄率は赤)
@@ -340,13 +363,25 @@ let costBuiltFor = "";   // 表を作り直すのは世帯を切り替えたと�
 function drawCost(){
   const hh = S.hh, cur = decade(S.age), decs = [20,30,40,50,60];
   if (costBuiltFor !== hh){
+    const inp = (d, i) => `<td><input type="number" min="0" step="0.1" class="${COST[hh][d][i]!==COST_DEFAULT[hh][d][i]?"edited":""}" data-dec="${d}" data-i="${i}" value="${COST[hh][d][i]}" aria-label="${d}代 ${CATS[i]}(万円)"></td>`;
+    const nis = d => d===60 ? `<td class="muted">—</td>`
+      : `<td><input type="number" min="0" step="0.5" class="${NISA[hh][d]!==NISA_DEFAULT[hh][d]?"edited":""}" data-dec="${d}" data-nisa="1" value="${NISA[hh][d]}" aria-label="${d}代 NISA積立(万円/月)"></td>`;
     let h = `<tr><th>項目</th>${decs.map(d=>`<th id="ch-${d}">${d}代</th>`).join("")}</tr>`;
-    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>`<td><input type="number" min="0" step="0.1" class="${COST[hh][d][i]!==COST_DEFAULT[hh][d][i]?"edited":""}" data-dec="${d}" data-i="${i}" value="${COST[hh][d][i]}" aria-label="${d}代 ${c}(万円)"></td>`).join("")}</tr>`; });
-    h += `<tr class="sum"><td>合計(万円)</td>${decs.map(d=>`<td id="ct-${d}"></td>`).join("")}</tr>`;
+    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>inp(d,i)).join("")}</tr>`; });
+    h += `<tr class="nisa"><td>NISA積立<br><span class="muted">貯蓄の一部・生活費に含めない</span></td>${decs.map(nis).join("")}</tr>`;
+    h += `<tr class="sum"><td>生活費の合計(万円)</td>${decs.map(d=>`<td id="ct-${d}"></td>`).join("")}</tr>`;
+    h += `<tr class="sum"><td>貯蓄率<br><span class="muted">(今の月給の手取りから)</span></td>${decs.map(d=>`<td id="cs-${d}"></td>`).join("")}</tr>`;
     $("costTbl").innerHTML = h;
     costBuiltFor = hh;
   }
-  decs.forEach(d=>{ $("ct-"+d).textContent = man(sum(COST[hh][d])); $("ch-"+d).className = d===cur ? "cur" : ""; });
+  const th = takeHome(S.salary)*(12+S.bonus)/12;
+  decs.forEach(d=>{
+    const c = costTotal(hh, d, S.kids), r = (th - c)/th, cell = $("cs-"+d);
+    $("ct-"+d).textContent = man(sum(COST[hh][d]));
+    $("ch-"+d).className = d===cur ? "cur" : "";
+    cell.textContent = d===60 ? "—" : Math.round(r*100)+"%";
+    cell.className = d===60 ? "muted" : r < 0 ? "bad" : "";
+  });
   $("costNote").textContent = hh==="single"
     ? "独身・大阪市内で一人暮らし(賃貸)の月額の目安(万円)。自分の家賃・食費に合わせて書き換えてください。"
     : `夫婦2人(子どもなし)の月額の目安(万円)。子どもは1人あたり月${KID_COST}万円が別に加算されます(今の設定:${S.kids}人)。`;
@@ -387,15 +422,22 @@ $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k)
 ["age","kids","salary","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
 $("costTbl").addEventListener("input", e=>{
   const t = e.target, d = t.dataset.dec; if (!d) return;
-  const v = parseFloat(t.value);
-  const i = +t.dataset.i;
-  COST[S.hh][d][i] = isNaN(v) || v < 0 ? 0 : v;
-  t.classList.toggle("edited", COST[S.hh][d][i] !== COST_DEFAULT[S.hh][d][i]);
-  persistCosts(); render();
+  const v = parseFloat(t.value), val = isNaN(v) || v < 0 ? 0 : v;
+  if (t.dataset.nisa){
+    NISA[S.hh][d] = val;
+    t.classList.toggle("edited", val !== NISA_DEFAULT[S.hh][d]);
+    persistNisa();
+  } else {
+    const i = +t.dataset.i;
+    COST[S.hh][d][i] = val;
+    t.classList.toggle("edited", val !== COST_DEFAULT[S.hh][d][i]);
+    persistCosts();
+  }
+  render();
 });
 $("costReset").addEventListener("click", ()=>{
-  for (const d in COST[S.hh]) COST[S.hh][d] = [...COST_DEFAULT[S.hh][d]];
-  persistCosts(); costBuiltFor = ""; render();
+  for (const d in COST[S.hh]){ COST[S.hh][d] = [...COST_DEFAULT[S.hh][d]]; NISA[S.hh][d] = NISA_DEFAULT[S.hh][d]; }
+  persistCosts(); persistNisa(); costBuiltFor = ""; render();
 });
 render();
 </script>
