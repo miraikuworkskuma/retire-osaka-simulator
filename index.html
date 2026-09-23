@@ -130,13 +130,20 @@
   </section>
 
   <section class="card">
-    <h2>⑤ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
+    <h2>⑤ 1億円に届く年齢</h2>
+    <p class="muted">年代が上がるにつれ月給が増えていく想定で、「手取り−生活費」を年7%で運用しながら積み立てたとき、資産が1億円に届く年齢の目安です。月給は下の表で年代ごとに書き換えられます(今の世帯の生活費の表と連動)。</p>
+    <div class="scroll"><table class="tbl" id="okuTbl"></table></div>
+    <p class="muted" id="okuNote"></p>
+  </section>
+
+  <section class="card">
+    <h2>⑥ 早見表A:貯蓄率ごとに「最短で何歳で退職できるか」</h2>
     <p class="muted">今の年齢・世帯・貯金などは上の条件のまま、月給と貯蓄率だけ変えた表です。青い枠が今の設定に近いマス。<span class="bad">赤(⚠)</span>は貯蓄後の生活費が平均の85%を下回る無理めな組み合わせです。</p>
     <div class="scroll"><table class="tbl" id="tblA"></table></div>
   </section>
 
   <section class="card">
-    <h2>⑥ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
+    <h2>⑦ 早見表B:「○歳で退職したい」なら貯蓄率はいくら必要?</h2>
     <p class="muted">月給ごとに、その年齢で退職して最後までお金がもつために必要な貯蓄率(手取りに対する割合)です。</p>
     <div class="scroll"><table class="tbl" id="tblB"></table></div>
     <p class="muted">色: 緑=30%以下 / 黄=31〜50% / 橙=51%超 / <span class="bad">赤(⚠)=生活費が平均の85%を下回る無理めな設定、または貯蓄率80%でも足りない(×)</span></p>
@@ -199,6 +206,19 @@ try {
 const persistShare = () => { try { localStorage.setItem(SHARE_KEY, JSON.stringify(SHARE)); } catch(e){} };
 const NISA_YEAR_CAP = 360, NISA_LIFE_CAP = 1800;   // 新NISAの年間・生涯の投資上限(万円)
 const TAX = 0.20315;                                // NISA以外の運用益にかかる税率
+// 「1億円に届く年齢」用:年代ごとの月給(額面・万円)。年代が上がるにつれ増える想定の初期値(編集可)
+const SALDEC_DEFAULT = {single:{20:25,30:30,40:35,50:38}, couple:{20:40,30:50,40:60,50:65}};
+const SALDEC = JSON.parse(JSON.stringify(SALDEC_DEFAULT));
+const SALDEC_KEY = "retire-osaka-saldec";
+try {
+  const saved = JSON.parse(localStorage.getItem(SALDEC_KEY) || "{}");
+  for (const hh in SALDEC) for (const d in SALDEC[hh]) { const v = saved[hh] && saved[hh][d]; if (typeof v === "number" && v > 0) SALDEC[hh][d] = v; }
+} catch(e){}
+const persistSaldec = () => { try { localStorage.setItem(SALDEC_KEY, JSON.stringify(SALDEC)); } catch(e){} };
+const OKUEN_GOAL = 10000;      // 1億円(万円)
+const OKUEN_RATE = 0.07;       // この表だけは指定どおり年7%固定(上の「運用の実質利回り」設定とは別)
+const OKUEN_START = 22;        // 積み立て開始年齢
+const OKUEN_YEARS = {20:8, 30:10, 40:10, 50:10};   // 20代は22歳スタートなので8年
 const KID_COST = 4;            // 子ども1人あたり(万円/月)
 const PRESETS = {single:[20,25,30,35,40,45], couple:[30,40,50,60,70,80]};   // 月給の選択肢・早見表の行
 const LIMIT = 0.85;            // 使えるお金が平均の生活費のこの割合を下回ると「無理めな設定」(赤)
@@ -364,7 +384,7 @@ function render(){
   }).join("");
 
   drawChart(r, p.target);
-  drawCost(); drawPlan(); drawTables();
+  drawCost(); drawPlan(); drawOkuen(); drawTables();
 }
 
 function drawChart(r, R){
@@ -428,6 +448,46 @@ function drawPlan(){
   $("planNote").textContent = `貯蓄率${p.rate}%・今${p.age}歳から65歳まで働く前提で、NISAの元本が1,800万円に届く年齢です。手取りが多く貯蓄額が大きい人ほど早く埋まります。`;
 }
 
+// 年代ごとに月給を上げながら年7%で積み立て、1億円に届く年齢を返す
+function simulateOkuen(hh){
+  let balance = 0, age = OKUEN_START;
+  const mRate = OKUEN_RATE/12;
+  const rows = []; let hitAge = null;
+  for (const d of [20,30,40,50]){
+    const salary = SALDEC[hh][d], th = takeHome(salary), cost = costTotal(hh, d, hh==="couple"?S.kids:0);
+    const rate = Math.max(0, (th-cost)/th), monthly = th*rate, years = OKUEN_YEARS[d];
+    const startBal = balance;
+    for (let m=0; m<years*12; m++){
+      balance = balance*(1+mRate) + monthly;
+      if (hitAge===null && balance >= OKUEN_GOAL) hitAge = age + (m+1)/12;
+    }
+    age += years;
+    rows.push({d, salary, th, cost, rate, monthly, startBal, endBal:balance});
+  }
+  return {rows, hitAge, final:balance, endAge:age};
+}
+
+function drawOkuen(){
+  const hh = S.hh, decs=[20,30,40,50];
+  let h = `<tr><th>年代</th><th>月給(額面)</th><th>手取り/月</th><th>生活費/月</th><th>貯蓄率</th><th>貯蓄額/月</th><th>年代末の資産</th></tr>`;
+  decs.forEach(d=>{
+    h += `<tr><td>${d}代</td><td><input type="number" min="1" step="1" data-saldec="${d}" value="${SALDEC[hh][d]}" aria-label="${d}代の月給(万円)"></td>`
+      + `<td id="oth-${d}"></td><td id="oc-${d}"></td><td id="or-${d}"></td><td id="om-${d}"></td><td id="oe-${d}"></td></tr>`;
+  });
+  $("okuTbl").innerHTML = h;
+  const r = simulateOkuen(hh);
+  r.rows.forEach(row=>{
+    $("oth-"+row.d).textContent = man(row.th)+"万円";
+    $("oc-"+row.d).textContent = man(row.cost)+"万円";
+    $("or-"+row.d).textContent = Math.round(row.rate*100)+"%";
+    $("om-"+row.d).textContent = man(row.monthly)+"万円";
+    $("oe-"+row.d).textContent = Math.round(row.endBal).toLocaleString()+"万円";
+  });
+  $("okuNote").textContent = r.hitAge
+    ? `1億円に届くのは約${r.hitAge.toFixed(1)}歳です。`
+    : `${r.endAge}歳までに1億円には届かず、時点の資産は約${Math.round(r.final).toLocaleString()}万円です。`;
+}
+
 function drawTables(){
   const p = S, rates=[10,20,30,40,50,60], targets=[45,50,55,60,65];
   let a = `<tr><th>月給(手取り)</th>${rates.map(r=>`<th>貯蓄率${r}%</th>`).join("")}</tr>`;
@@ -461,6 +521,12 @@ function drawTables(){
 $("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
 $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
 ["age","kids","salary","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+$("okuTbl").addEventListener("input", e=>{
+  const t = e.target, d = t.dataset.saldec; if (!d) return;
+  const v = parseFloat(t.value);
+  SALDEC[S.hh][d] = isNaN(v) || v <= 0 ? SALDEC_DEFAULT[S.hh][d] : v;
+  persistSaldec(); drawOkuen();
+});
 $("selfInv").addEventListener("change", e=>{ S.selfInv = e.target.checked; render(); });
 $("costTbl").addEventListener("input", e=>{
   const t = e.target, d = t.dataset.dec; if (!d) return;
