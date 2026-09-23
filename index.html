@@ -8,7 +8,7 @@
   :root{
     --brand:#3b5bdb; --bg:#f7f8fc; --card:#fff; --text:#222; --muted:#667;
     --ok:#2b8a3e; --okbg:#e6f6ea; --warn:#e67700; --warnbg:#fff3e0; --ng:#c92a2a; --ngbg:#fdeaea;
-    --line:#e3e6ef; --radius:14px; --shadow:0 2px 12px rgba(0,0,0,.06);
+    --line:#e3e6ef; --radius:14px; --shadow:0 2px 12px rgba(0,0,0,.06); --cut:#fff8db;
   }
   *{box-sizing:border-box}
   body{margin:0;font-family:system-ui,-apple-system,"Hiragino Kaku Gothic ProN",sans-serif;
@@ -25,6 +25,8 @@
   input[type=range]{padding:0}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:0 1em}
   @media (max-width:600px){.grid{grid-template-columns:1fr}}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 1em}
+  @media (max-width:600px){.grid3{grid-template-columns:1fr}}
   .chips{display:flex;flex-wrap:wrap;gap:.5em}
   .chip{flex:1 1 auto;min-width:4.2em;background:var(--card);color:var(--text);border:2px solid var(--line);
     border-radius:10px;padding:.6em .4em;font-size:1rem;cursor:pointer;text-align:center}
@@ -42,6 +44,7 @@
   .tbl td:first-child,.tbl th:first-child{text-align:left}
   .tbl tr.sum td{font-weight:800;background:#f3f5fc}
   .tbl tr.nisa td{background:#eef7ee}
+  .tbl tr.cut td:first-child{background:var(--cut)}
   .scroll{overflow-x:auto}
   .tbl input{width:4.6em;padding:.25em .3em;text-align:right;border-radius:6px}
   .cur{outline:3px solid var(--brand);outline-offset:-3px}
@@ -49,8 +52,10 @@
   input.edited{background:#fff8db} @media (prefers-color-scheme:dark){input.edited{background:#3b3712}}
   svg{width:100%;height:auto;display:block}
   ul.note{padding-left:1.2em;margin:.3em 0} ul.note li{margin:.2em 0}
+  .checkrow{display:flex;gap:.5em;align-items:center;font-weight:400}
+  .checkrow input{width:auto}
   @media (prefers-color-scheme:dark){
-    :root{--bg:#16181d;--card:#22252c;--text:#eef;--muted:#99a;--line:#3a3d46;
+    :root{--bg:#16181d;--card:#22252c;--text:#eef;--muted:#99a;--line:#3a3d46;--cut:#3b3712;
       --okbg:#173a22;--ok:#7fdc95;--warnbg:#3d2c12;--warn:#ffb454;--ngbg:#421b1b;--ng:#ff8b8b}
     input,select{background:#1a1c22;color:#eef;border-color:#3a3d46}
     .tbl th{background:#2b2f3a} .tbl tr.sum td{background:#2b2f3a} .tbl tr.nisa td{background:#1e2e22} .c-mid{background:#3b3712}
@@ -84,13 +89,13 @@
     <p class="muted" id="thNote"></p>
     <label>貯蓄率(手取りのうち貯める割合):<span class="val" id="rateV"></span></label>
     <input type="range" id="rate" min="0" max="80" step="1">
-    <label style="display:flex;gap:.5em;align-items:center;font-weight:400"><input type="checkbox" id="selfInv" style="width:auto"> 貯蓄のうち「自己投資」の分は資産に数えない(下の表の割合)</label>
+    <label class="checkrow"><input type="checkbox" id="selfInv"> 貯蓄のうち「自己投資」の分は資産に数えない(下の表の割合)</label>
     <label>退職したい年齢:<span class="val" id="targetV"></span></label>
     <input type="range" id="target" min="30" max="70" step="1">
     <details open style="margin-top:1em"><summary><b>生活費(家賃・食費など)を自分に合わせて変える</b></summary>
       <p class="muted" id="costNote"></p>
       <div class="scroll"><table class="tbl" id="costTbl"></table></div>
-      <p class="muted">青枠は今の年齢の列で、「貯蓄後に使えるお金」との比較に使います。<b>60代の合計は老後の生活費</b>として退職後の計算に使われ、数字を変えると下の結果・グラフ・早見表がすぐ変わります。</p>
+      <p class="muted">青枠は今の年齢の列で、「貯蓄後に使えるお金」との比較に使います。<b>60代の合計は老後の生活費</b>として退職後の計算に使われ、数字を変えると下の結果・グラフ・早見表がすぐ変わります。黄色地の行(✂️)は見直しで削りやすい項目です。</p>
       <button type="button" class="chip" id="costReset" style="flex:none;font-size:.9rem">この世帯の生活費を初期値に戻す</button>
     </details>
     <details style="margin-top:1em"><summary>くわしい設定(そのままでOK)</summary>
@@ -101,7 +106,23 @@
         <div><label>年金を受け取り始める年齢</label><input type="number" id="pstart" min="60" max="75" step="1"></div>
         <div><label>老後の毎月の生活費(万円・空欄=上の60代の合計)</label><input type="number" id="retExp" min="0" step="0.5" placeholder="自動"></div>
       </div>
-      <p class="muted">「実質利回り」は物価上昇を引いた後の運用成績です。2%は、たとえば運用4%−物価2%のイメージ。</p>
+      <p class="muted">「実質利回り」は物価上昇を引いた後の運用成績です。2%は、たとえば運用4%−物価2%のイメージ。「今の貯金・投資」は、下の「⑥ 1億円に届く年齢」の出発点としても使われます。</p>
+    </details>
+    <details style="margin-top:1em"><summary><b>大きな買い物(車・家)を計算に入れる</b></summary>
+      <label class="checkrow"><input type="checkbox" id="car"> 車を買う(買い替えもここで設定)</label>
+      <div class="grid3">
+        <div><label>購入する年齢</label><input type="number" id="carAge" min="18" max="64" step="1"></div>
+        <div><label>購入金額(万円)</label><input type="number" id="carAmt" min="0" step="10"></div>
+        <div><label>買い替えサイクル(年)</label><input type="number" id="carCycle" min="0" max="30" step="1"></div>
+      </div>
+      <p class="muted">買い替えサイクルを0にすると一度だけの購入になります。</p>
+      <label class="checkrow" style="margin-top:1em"><input type="checkbox" id="house"> 家を買う(頭金のみ計算)</label>
+      <div class="grid">
+        <div><label>購入する年齢</label><input type="number" id="houseAge" min="18" max="70" step="1"></div>
+        <div><label>頭金(万円)</label><input type="number" id="houseAmt" min="0" step="50"></div>
+      </div>
+      <p class="muted">購入額は、その年に資産からまとめて引く計算です(ローンの毎月返済額は含めません。家は頭金だけ、車は購入額の全額)。下のグラフと結果・1億円到達の計算に反映されます。</p>
+      <div id="eventRes"></div>
     </details>
   </section>
 
@@ -118,7 +139,7 @@
 
   <section class="card">
     <h2>③ お金の増え方・減り方</h2>
-    <p class="muted">「退職したい年齢」で辞めた場合の資産の推移です(万円・物価上昇を除いた金額)。</p>
+    <p class="muted">「退職したい年齢」で辞めた場合の資産の推移です(万円・物価上昇を除いた金額)。🚗🏠は車・家の購入時期です。</p>
     <div id="chart"></div>
   </section>
 
@@ -131,9 +152,10 @@
 
   <section class="card">
     <h2>⑤ 1億円に届く年齢</h2>
-    <p class="muted">年代が上がるにつれ月給が増えていく想定で、「手取り−生活費」を年7%で運用しながら積み立てたとき、資産が1億円に届く年齢の目安です。月給は下の表で年代ごとに書き換えられます(今の世帯の生活費の表と連動)。</p>
+    <p class="muted">今の年齢・貯金から出発し、年代が上がるにつれ月給が増えていく想定で「手取り−生活費」を年7%で運用しながら積み立てます。<b>65歳までは働き、65歳からは年金を受け取りながら</b>運用を続けた場合の目安です。月給は下の表で年代ごとに書き換えられます(生活費は①の表と連動)。</p>
     <div class="scroll"><table class="tbl" id="okuTbl"></table></div>
     <p class="muted" id="okuNote"></p>
+    <p class="muted" id="okuEventNote"></p>
   </section>
 
   <section class="card">
@@ -158,8 +180,10 @@
       <li>年金は、国民年金(満額 月7.0万円)+厚生年金(22歳から退職まで会社員として加入、月給を平均給与として概算)。既婚の場合は配偶者の国民年金(月7.0万円)も加算。</li>
       <li>60歳前に退職する場合は、国民年金保険料(月1.7万円/人)を老後の生活費に加えています。年金は繰り上げ・繰り下げ受給の増減はしません。</li>
       <li>既婚は「夫婦の月給の合計」を入力してください。共働きで二人とも同じ年齢に退職し、厚生年金は合計を半分ずつ・国民年金は二人分で概算します。子ども1人あたり月4万円を現役の間の生活費に加算(老後は子どもの分なし)。</li>
-      <li>生活費は大阪の平均的な目安を初期値にしていて、自分の数字に書き換えられます(書き換えた欄は黄色)。貯蓄後に使えるお金が平均の85%を下回ると、無理めな設定として赤で警告します。</li>
+      <li>生活費は大阪の平均的な目安を初期値にしていて、自分の数字に書き換えられます(書き換えた欄は黄色)。貯蓄後に使えるお金が平均の85%を下回ると、無理めな設定として赤で警告します。通信費・自動車維持費・車両保険・貯蓄型保険は、見直しで削りやすい項目として✂️マークを付けています。</li>
       <li>貯蓄は「自己投資」と「金融投資」に分けます(初期値は20代 8:2、30代 5:5、40代 3:7、50代 2:8)。自己投資の分は学び・スキルなどに使い、資産には数えません(昇給に効く想定なので、昇給率で調整してください)。金融投資はNISAの上限(年360万円・生涯1,800万円)まで。NISAは運用益が非課税、それ以外の運用益には約20%課税として計算し、老後は課税口座→NISAの順に取り崩します。</li>
+      <li>車・家の購入は、指定した年にその金額をまとめて資産から引く計算です(ローン返済は含めません)。車は買い替えサイクルを指定すると繰り返し引かれます。</li>
+      <li>「⑤ 1億円に届く年齢」は、今の年齢・貯金からスタートし、65歳まで年代別の月給で積み立て、65歳以降は年金(厚生年金を年代別月給から概算)と老後の生活費(60代の生活費表)で運用を続けます。運用利回りは指定どおり年7%固定です(①の「運用の実質利回り」とは別)。</li>
       <li>入力はこの端末のブラウザにだけ保存され、外部には送信されません。</li>
     </ul>
     <p class="muted">みらいくワークス</p>
@@ -168,21 +192,24 @@
 
 <script>
 // ===== 大阪の生活費の目安(月額・万円)=====
-const CATS = ["家賃","食費","水道光熱","通信","交通","日用品・被服","保険・医療","趣味・交際","その他"];
+const CATS = ["家賃","食費","水道光熱","通信費","交通","自動車維持費","車両保険","日用品・被服","保険・医療","貯蓄型保険","趣味・交際","その他"];
+const CUTTABLE = new Set(["通信費","自動車維持費","車両保険","貯蓄型保険"]);   // 見直しで削りやすい項目(✂️表示)
+// 自動車維持費・車両保険・貯蓄型保険は「持っている人だけ」の費用なので初期値は0円。
+// 車を持っている/保険に入っている場合は、下の生活費の表で自分の金額に書き換えてください。
 const COST = {
   single: {
-    20:[5.8,4.5,1.0,1.0,0.8,1.5,0.7,3.0,1.0],
-    30:[6.5,4.8,1.1,1.0,0.9,1.6,1.0,3.0,1.2],
-    40:[6.5,5.0,1.2,1.0,1.0,1.6,1.3,3.0,1.3],
-    50:[6.5,5.2,1.3,1.0,1.0,1.6,1.8,3.0,1.5],
-    60:[5.5,5.0,1.4,0.9,0.8,1.3,2.5,2.5,1.5]
+    20:[5.8,4.5,1.0, 1.0, 0.8, 0.0,0.0, 1.5, 0.7, 0.0, 3.0,1.0],
+    30:[6.5,4.8,1.1, 1.0, 0.9, 0.0,0.0, 1.6, 1.0, 0.0, 3.0,1.2],
+    40:[6.5,5.0,1.2, 1.0, 1.0, 0.0,0.0, 1.6, 1.3, 0.0, 3.0,1.3],
+    50:[6.5,5.2,1.3, 1.0, 1.0, 0.0,0.0, 1.6, 1.8, 0.0, 3.0,1.5],
+    60:[5.5,5.0,1.4, 0.9, 0.8, 0.0,0.0, 1.3, 2.5, 0.0, 2.5,1.5]
   },
   couple: {
-    20:[8.0,7.0,1.6,1.6,1.2,2.5,1.2,4.5,1.5],
-    30:[9.5,7.5,1.7,1.8,1.5,2.8,1.8,4.5,2.0],
-    40:[10.0,8.0,1.8,1.8,1.8,3.0,2.3,4.5,2.5],
-    50:[10.0,8.5,2.0,1.8,1.8,3.0,3.0,4.5,3.0],
-    60:[8.0,8.0,2.1,1.6,1.4,2.5,4.0,4.0,3.0]
+    20:[8.0,7.0,1.6, 1.6, 1.2, 0.0,0.0, 2.5, 1.2, 0.0, 4.5,1.5],
+    30:[9.5,7.5,1.7, 1.8, 1.5, 0.0,0.0, 2.8, 1.8, 0.0, 4.5,2.0],
+    40:[10.0,8.0,1.8, 1.8, 1.8, 0.0,0.0, 3.0, 2.3, 0.0, 4.5,2.5],
+    50:[10.0,8.5,2.0, 1.8, 1.8, 0.0,0.0, 3.0, 3.0, 0.0, 4.5,3.0],
+    60:[8.0,8.0,2.1, 1.6, 1.4, 0.0,0.0, 2.5, 4.0, 0.0, 4.0,3.0]
   }
 };
 const COST_DEFAULT = JSON.parse(JSON.stringify(COST));
@@ -207,7 +234,7 @@ const persistShare = () => { try { localStorage.setItem(SHARE_KEY, JSON.stringif
 const NISA_YEAR_CAP = 360, NISA_LIFE_CAP = 1800;   // 新NISAの年間・生涯の投資上限(万円)
 const TAX = 0.20315;                                // NISA以外の運用益にかかる税率
 // 「1億円に届く年齢」用:年代ごとの月給(額面・万円)。年代が上がるにつれ増える想定の初期値(編集可)
-const SALDEC_DEFAULT = {single:{20:25,30:30,40:35,50:38}, couple:{20:40,30:50,40:60,50:65}};
+const SALDEC_DEFAULT = {single:{20:25,30:30,40:35,50:38,60:25}, couple:{20:40,30:50,40:60,50:65,60:45}};
 const SALDEC = JSON.parse(JSON.stringify(SALDEC_DEFAULT));
 const SALDEC_KEY = "retire-osaka-saldec";
 try {
@@ -217,8 +244,6 @@ try {
 const persistSaldec = () => { try { localStorage.setItem(SALDEC_KEY, JSON.stringify(SALDEC)); } catch(e){} };
 const OKUEN_GOAL = 10000;      // 1億円(万円)
 const OKUEN_RATE = 0.07;       // この表だけは指定どおり年7%固定(上の「運用の実質利回り」設定とは別)
-const OKUEN_START = 22;        // 積み立て開始年齢
-const OKUEN_YEARS = {20:8, 30:10, 40:10, 50:10};   // 20代は22歳スタートなので8年
 const KID_COST = 4;            // 子ども1人あたり(万円/月)
 const PRESETS = {single:[20,25,30,35,40,45], couple:[30,40,50,60,70,80]};   // 月給の選択肢・早見表の行
 const LIMIT = 0.85;            // 使えるお金が平均の生活費のこの割合を下回ると「無理めな設定」(赤)
@@ -233,7 +258,12 @@ const costTotal = (hh, age, kids) => sum(COST[hh][decade(age)]) + (hh==="couple"
 
 // ===== 状態 =====
 const STORE_KEY = "retire-osaka";
-const DEFAULT = {selfInv:true, hh:"single", age:30, kids:0, salary:30, rate:20, target:60, cash:0, raise:0, bonus:0, ret:2, end:95, pstart:65, retExp:""};
+const DEFAULT = {
+  selfInv:true, hh:"single", age:30, kids:0, salary:30, rate:20, target:60, cash:0, raise:0, bonus:0,
+  ret:2, end:95, pstart:65, retExp:"",
+  car:false, carAge:32, carAmt:250, carCycle:8,
+  house:false, houseAge:35, houseAmt:500,
+};
 let S = {...DEFAULT};
 try { Object.assign(S, JSON.parse(localStorage.getItem(STORE_KEY) || "{}")); } catch(e){}
 const persist = () => { try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch(e){} };
@@ -244,6 +274,18 @@ const takeHome = salary => salary * Math.min(.82, Math.max(.75, .82 - (salary-20
 // 貯蓄後に使えるお金 ÷ 平均の生活費(1未満なら平均より節約する設定)
 const livableRatio = (p, salary, rate) =>
   takeHome(salary)*(12+p.bonus)/12*(1-rate) / costTotal(p.hh, p.age, p.kids);
+
+// 車・家の購入で、その年にまとめて引かれる金額(万円)
+function eventCost(p, age){
+  let c = 0;
+  if (p.car && age >= p.carAge){
+    if (p.carCycle > 0){ if ((age - p.carAge) % p.carCycle === 0) c += p.carAmt; }
+    else if (age === p.carAge) c += p.carAmt;
+  }
+  if (p.house && age === p.houseAge) c += p.houseAmt;
+  return c;
+}
+const withoutEvents = p => ({...p, car:false, house:false});
 
 // 退職年齢Rのときの年金(万円/月)。厚生年金は「平均月給×乗率×加入月数」が年額
 // 昇給の倍率(今の年齢を1として、55歳まで毎年伸びる。過去は逆算)
@@ -283,10 +325,12 @@ function simulate(p, R, rate){
     const nisa = Math.max(0, Math.min(fin, NISA_YEAR_CAP, NISA_LIFE_CAP - basis));
     basis += nisa;
     n = n*g + nisa; t = t*gt + (fin - nisa);
+    const ev = eventCost(p, age);
+    if (ev){ t -= ev; if (t < 0){ n += t; t = 0; } }
     traj.push({age:age+1, v:n+t});
   }
   for (let age=R; age<p.end; age++){
-    const spend = (base + (age<60 ? NENKIN_HOKEN*people : 0))*12 - (age>=p.pstart ? pen*12 : 0);
+    const spend = (base + (age<60 ? NENKIN_HOKEN*people : 0))*12 - (age>=p.pstart ? pen*12 : 0) + eventCost(p, age);
     n *= g; t = t*gt - spend;
     if (t < 0){ n += t; t = 0; }      // 課税口座から先に使い、足りなければNISAを取り崩す
     if (n < 0){ traj.push({age:age+1, v:0}); return {ok:false, depAge:age, traj, pen, basis}; }
@@ -304,6 +348,44 @@ function needRate(p, R){
   let lo=0, hi=MAX_RATE;
   for (let i=0;i<30;i++){ const m=(lo+hi)/2; simulate(p,R,m).ok ? hi=m : lo=m; }
   return hi;
+}
+
+// 「1億円に届く年齢」用の厚生年金概算(年代別月給から、22〜65歳の平均で計算)
+function pensionOkuen(hh){
+  const persons = hh==="couple" ? 2 : 1;
+  let avg = 0, yrs = 0;
+  for (let y=22; y<65; y++){ avg += Math.min(SALDEC[hh][decade(y)]/persons, 65); yrs++; }
+  avg /= yrs;
+  return persons * (KIHON + avg*KOSEI_K*yrs);
+}
+// 今の年齢・貯金から出発し、65歳まで年代別月給で積み立て、65歳以降は年金と老後生活費で運用を続ける
+function simulateOkuen(p, hh, withEvents){
+  const startAge = Math.min(p.age, 65);
+  let balance = p.cash;
+  const mRate = OKUEN_RATE/12, kids = hh==="couple" ? p.kids : 0;
+  const traj = [{age:startAge, v:balance}];
+  let hitAge = balance >= OKUEN_GOAL ? startAge : null;
+  for (let age=startAge; age<65; age++){
+    const salary = SALDEC[hh][decade(age)], th = takeHome(salary), cost = costTotal(hh, age, kids);
+    const rate = Math.max(0, (th-cost)/th), monthly = th*rate;
+    for (let m=0; m<12; m++){
+      balance = balance*(1+mRate) + monthly;
+      if (hitAge===null && balance>=OKUEN_GOAL) hitAge = age + (m+1)/12;
+    }
+    if (withEvents){ balance -= eventCost(p, age); if (balance < 0) balance = 0; }
+    traj.push({age:age+1, v:balance});
+  }
+  const pen = pensionOkuen(hh), cost60 = costTotal(hh, 60, 0), postStart = Math.max(65, startAge);
+  for (let age=postStart; age<p.end; age++){
+    for (let m=0; m<12; m++){
+      balance = balance*(1+mRate) + pen - cost60;
+      if (balance < 0) balance = 0;
+      if (hitAge===null && balance>=OKUEN_GOAL) hitAge = age + (m+1)/12;
+    }
+    if (withEvents){ balance -= eventCost(p, age); if (balance < 0) balance = 0; }
+    traj.push({age:age+1, v:balance});
+  }
+  return {hitAge, final:balance, pension:pen, cost60, traj};
 }
 
 // ===== 画面 =====
@@ -331,6 +413,12 @@ function clampState(){
   S.pstart = Math.min(75, Math.max(60, +S.pstart||65));
   S.selfInv = S.selfInv !== false;
   S.salary = Math.min(200, Math.max(10, +S.salary || 30));
+  S.car = !!S.car; S.house = !!S.house;
+  S.carAge = Math.min(64, Math.max(18, +S.carAge||32));
+  S.carAmt = Math.max(0, +S.carAmt||0);
+  S.carCycle = Math.min(30, Math.max(0, +S.carCycle||0));
+  S.houseAge = Math.min(70, Math.max(18, +S.houseAge||35));
+  S.houseAmt = Math.max(0, +S.houseAmt||0);
 }
 
 function render(){
@@ -347,6 +435,9 @@ function render(){
   $("salLabel").textContent = p.hh==="couple" ? "世帯の月給の合計(夫婦の額面を足した額・万円)" : "月給(額面・万円)";
   $("salHint").textContent = p.hh==="couple" ? "夫婦とも働く想定で、二人の月給を合計して入力します。二人とも同じ年齢で退職する計算です。" : "";
   $("thNote").textContent = `月給${p.salary}万円 → 手取りは月平均約${man(th)}万円(ボーナス込み)。貯蓄率${p.rate}%なら毎月約${man(th*rate)}万円を貯めます。`;
+  $("car").checked = p.car; $("house").checked = p.house;
+  setVal("carAge",p.carAge); setVal("carAmt",p.carAmt); setVal("carCycle",p.carCycle);
+  setVal("houseAge",p.houseAge); setVal("houseAmt",p.houseAmt);
 
   // 結果:最短の退職年齢
   const best = earliest(p, rate);
@@ -356,6 +447,20 @@ function render(){
     $("mainRes").innerHTML = `<div class="big ok"><div>この条件なら</div><div class="n">今すぐ退職しても${p.end}歳までもちます</div></div>`;
   } else {
     $("mainRes").innerHTML = `<div class="big ${best<=60?"ok":"warn"}"><div>この条件なら、最短で</div><div class="n">${best}歳で退職OK</div><div>あと${best-p.age}年働けば、${p.end}歳までお金がもちます。</div></div>`;
+  }
+
+  // 車・家の購入の影響
+  if (p.car || p.house){
+    const bestWithout = earliest(withoutEvents(p), rate);
+    let msg;
+    if (best === null && bestWithout === null) msg = "車・家の有無に関わらず、70歳までの退職は難しい設定です。";
+    else if (best === null) msg = `車・家の購入があると、70歳までの退職が難しくなります(購入しなければ${bestWithout}歳で退職可)。`;
+    else if (bestWithout === null) msg = `車・家を購入しても最短${best}歳で退職できます(購入しない場合は70歳までに届きません)。`;
+    else if (best === bestWithout) msg = `この設定では、車・家を購入しても最短の退職年齢は変わりません(${best}歳)。`;
+    else msg = `車・家の購入により、最短の退職年齢が${bestWithout}歳→${best}歳へ、${best-bestWithout}年遅くなります。`;
+    $("eventRes").innerHTML = `<p class="muted">${msg}</p>`;
+  } else {
+    $("eventRes").innerHTML = "";
   }
 
   // 結果:希望の退職年齢
@@ -383,12 +488,18 @@ function render(){
     return `<span class="${ok?"ok":"ng"}">${R}${ok?"✓":"×"}</span>`;
   }).join("");
 
-  drawChart(r, p.target);
+  const markers = [];
+  if (p.car){
+    if (p.carCycle > 0){ for (let a=p.carAge; a<=p.end; a+=p.carCycle) markers.push({age:a, label:"🚗"}); }
+    else markers.push({age:p.carAge, label:"🚗"});
+  }
+  if (p.house) markers.push({age:p.houseAge, label:"🏠"});
+  drawChart(r, p.target, markers);
   drawCost(); drawPlan(); drawOkuen(); drawTables();
 }
 
-function drawChart(r, R){
-  const W=640, H=260, L=52, B=28, T=14, Rr=12, pts=r.traj;
+function drawChart(r, R, markers){
+  const W=640, H=270, L=52, B=34, T=14, Rr=12, pts=r.traj;
   const maxV = Math.max(100, ...pts.map(q=>q.v))*1.08, a0=pts[0].age, a1=pts[pts.length-1].age;
   const x = a => L + (a-a0)/(a1-a0||1)*(W-L-Rr), y = v => H-B - v/maxV*(H-B-T);
   const color = r.ok ? "#2b8a3e" : "#c92a2a";
@@ -396,7 +507,12 @@ function drawChart(r, R){
   let grid="";
   for (let i=0;i<=4;i++){ const v=maxV*i/4; grid+=`<line x1="${L}" x2="${W-Rr}" y1="${y(v)}" y2="${y(v)}" stroke="currentColor" opacity=".12"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end" font-size="11" fill="currentColor" opacity=".7">${Math.round(v).toLocaleString()}</text>`; }
   for (let a=Math.ceil(a0/10)*10; a<=a1; a+=10) grid+=`<text x="${x(a)}" y="${H-8}" text-anchor="middle" font-size="11" fill="currentColor" opacity=".7">${a}歳</text>`;
-  $("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="資産の推移グラフ">${grid}
+  let evLines = "";
+  (markers||[]).forEach(mk=>{
+    if (mk.age<a0 || mk.age>a1) return;
+    evLines += `<line x1="${x(mk.age)}" x2="${x(mk.age)}" y1="${T}" y2="${H-B}" stroke="currentColor" stroke-dasharray="2 3" opacity=".35"/><text x="${x(mk.age)}" y="${T+34}" text-anchor="middle" font-size="13">${mk.label}</text>`;
+  });
+  $("chart").innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="資産の推移グラフ">${grid}${evLines}
     <line x1="${x(R)}" x2="${x(R)}" y1="${T}" y2="${H-B}" stroke="${color}" stroke-dasharray="4 4"/>
     <text x="${x(R)}" y="${T+10}" text-anchor="middle" font-size="11" fill="${color}">${R}歳で退職</text>
     <path d="${d}" fill="none" stroke="${color}" stroke-width="3"/></svg>`;
@@ -410,7 +526,10 @@ function drawCost(){
     const shr = d => d===60 ? `<td class="muted">—</td>`
       : `<td><input type="number" min="0" max="100" step="5" class="${SHARE[hh][d]!==SHARE_DEFAULT[hh][d]?"edited":""}" data-dec="${d}" data-share="1" value="${SHARE[hh][d]}" aria-label="${d}代 金融投資の割合(%)"></td>`;
     let h = `<tr><th>項目</th>${decs.map(d=>`<th id="ch-${d}">${d}代</th>`).join("")}</tr>`;
-    CATS.forEach((c,i)=>{ h += `<tr><td>${c}</td>${decs.map(d=>inp(d,i)).join("")}</tr>`; });
+    CATS.forEach((c,i)=>{
+      const cut = CUTTABLE.has(c);
+      h += `<tr class="${cut?"cut":""}"><td>${c}${cut?' <span title="見直しで削りやすい項目">✂️</span>':""}</td>${decs.map(d=>inp(d,i)).join("")}</tr>`;
+    });
     h += `<tr class="nisa"><td>金融投資の割合(%)<br><span class="muted">貯蓄のうちNISA等へ。残りは自己投資</span></td>${decs.map(shr).join("")}</tr>`;
     h += `<tr class="sum"><td>生活費の合計(万円)</td>${decs.map(d=>`<td id="ct-${d}"></td>`).join("")}</tr>`;
     h += `<tr class="sum"><td>貯蓄率<br><span class="muted">(今の月給の手取りから)</span></td>${decs.map(d=>`<td id="cs-${d}"></td>`).join("")}</tr>`;
@@ -448,44 +567,36 @@ function drawPlan(){
   $("planNote").textContent = `貯蓄率${p.rate}%・今${p.age}歳から65歳まで働く前提で、NISAの元本が1,800万円に届く年齢です。手取りが多く貯蓄額が大きい人ほど早く埋まります。`;
 }
 
-// 年代ごとに月給を上げながら年7%で積み立て、1億円に届く年齢を返す
-function simulateOkuen(hh){
-  let balance = 0, age = OKUEN_START;
-  const mRate = OKUEN_RATE/12;
-  const rows = []; let hitAge = null;
-  for (const d of [20,30,40,50]){
-    const salary = SALDEC[hh][d], th = takeHome(salary), cost = costTotal(hh, d, hh==="couple"?S.kids:0);
-    const rate = Math.max(0, (th-cost)/th), monthly = th*rate, years = OKUEN_YEARS[d];
-    const startBal = balance;
-    for (let m=0; m<years*12; m++){
-      balance = balance*(1+mRate) + monthly;
-      if (hitAge===null && balance >= OKUEN_GOAL) hitAge = age + (m+1)/12;
-    }
-    age += years;
-    rows.push({d, salary, th, cost, rate, monthly, startBal, endBal:balance});
-  }
-  return {rows, hitAge, final:balance, endAge:age};
-}
-
 function drawOkuen(){
-  const hh = S.hh, decs=[20,30,40,50];
-  let h = `<tr><th>年代</th><th>月給(額面)</th><th>手取り/月</th><th>生活費/月</th><th>貯蓄率</th><th>貯蓄額/月</th><th>年代末の資産</th></tr>`;
+  const p = S, hh = p.hh, decs = [20,30,40,50,60].filter(d => d + 9 >= p.age);
+  let h = `<tr><th>年代</th><th>月給(額面)</th><th>手取り/月</th><th>生活費/月</th><th>貯蓄率</th><th>貯蓄額/月</th></tr>`;
   decs.forEach(d=>{
-    h += `<tr><td>${d}代</td><td><input type="number" min="1" step="1" data-saldec="${d}" value="${SALDEC[hh][d]}" aria-label="${d}代の月給(万円)"></td>`
-      + `<td id="oth-${d}"></td><td id="oc-${d}"></td><td id="or-${d}"></td><td id="om-${d}"></td><td id="oe-${d}"></td></tr>`;
+    const salary = SALDEC[hh][d], th = takeHome(salary), cost = costTotal(hh, Math.max(d,p.age), hh==="couple"?p.kids:0);
+    const rate = Math.max(0, (th-cost)/th), monthly = th*rate;
+    h += `<tr><td>${d}代${d===60?"(60-64歳)":""}</td><td><input type="number" min="1" step="1" data-saldec="${d}" value="${salary}" aria-label="${d}代の月給(万円)"></td>`
+      + `<td>${man(th)}万円</td><td>${man(cost)}万円</td><td class="${rate<0?"bad":""}">${Math.round(rate*100)}%</td><td>${man(monthly)}万円</td></tr>`;
   });
   $("okuTbl").innerHTML = h;
-  const r = simulateOkuen(hh);
-  r.rows.forEach(row=>{
-    $("oth-"+row.d).textContent = man(row.th)+"万円";
-    $("oc-"+row.d).textContent = man(row.cost)+"万円";
-    $("or-"+row.d).textContent = Math.round(row.rate*100)+"%";
-    $("om-"+row.d).textContent = man(row.monthly)+"万円";
-    $("oe-"+row.d).textContent = Math.round(row.endBal).toLocaleString()+"万円";
-  });
-  $("okuNote").textContent = r.hitAge
-    ? `1億円に届くのは約${r.hitAge.toFixed(1)}歳です。`
-    : `${r.endAge}歳までに1億円には届かず、時点の資産は約${Math.round(r.final).toLocaleString()}万円です。`;
+
+  const r = simulateOkuen(p, hh, true);
+  const cost60 = r.cost60;
+  const base = r.hitAge
+    ? `今${p.age}歳・貯金${man(p.cash)}万円からスタートすると、1億円に届くのは約${r.hitAge.toFixed(1)}歳です。`
+    : `${p.end}歳までに1億円には届かず、時点の資産は約${Math.round(r.final).toLocaleString()}万円です。`;
+  $("okuNote").textContent = `${base} 65歳以降は年金(月約${man(r.pension)}万円)と老後の生活費(月約${man(cost60)}万円)で運用を続ける想定です。`;
+
+  if (p.car || p.house){
+    const r0 = simulateOkuen(p, hh, false);
+    let msg;
+    if (r.hitAge && r0.hitAge) msg = r.hitAge===r0.hitAge ? "車・家の購入があっても、1億円到達には影響しません。"
+      : `車・家の購入がなければ、1億円到達は約${(r.hitAge-r0.hitAge).toFixed(1)}年早い、約${r0.hitAge.toFixed(1)}歳の見込みです。`;
+    else if (!r.hitAge && r0.hitAge) msg = `車・家の購入がなければ約${r0.hitAge.toFixed(1)}歳で1億円に届きますが、購入すると${p.end}歳までに届きません。`;
+    else if (r.hitAge && !r0.hitAge) msg = "";   // 通常は起きない組み合わせ
+    else msg = "車・家の購入の有無に関わらず、1億円には届かない見込みです。";
+    $("okuEventNote").textContent = msg;
+  } else {
+    $("okuEventNote").textContent = "";
+  }
 }
 
 function drawTables(){
@@ -520,14 +631,17 @@ function drawTables(){
 // ===== 操作 =====
 $("hhChips").addEventListener("click", e=>{ const k=e.target.dataset.hh; if(k){ S.hh=k; render(); } });
 $("salChips").addEventListener("click", e=>{ const k=e.target.dataset.sal; if(k){ S.salary=+k; render(); } });
-["age","kids","salary","rate","target","raise","bonus","cash","ret","end","pstart","retExp"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+["age","kids","salary","rate","target","raise","bonus","cash","ret","end","pstart","retExp",
+ "carAge","carAmt","carCycle","houseAge","houseAmt"].forEach(id=>$(id).addEventListener("input", e=>{ S[id]=e.target.value; render(); }));
+$("selfInv").addEventListener("change", e=>{ S.selfInv = e.target.checked; render(); });
+$("car").addEventListener("change", e=>{ S.car = e.target.checked; render(); });
+$("house").addEventListener("change", e=>{ S.house = e.target.checked; render(); });
 $("okuTbl").addEventListener("input", e=>{
   const t = e.target, d = t.dataset.saldec; if (!d) return;
   const v = parseFloat(t.value);
   SALDEC[S.hh][d] = isNaN(v) || v <= 0 ? SALDEC_DEFAULT[S.hh][d] : v;
   persistSaldec(); drawOkuen();
 });
-$("selfInv").addEventListener("change", e=>{ S.selfInv = e.target.checked; render(); });
 $("costTbl").addEventListener("input", e=>{
   const t = e.target, d = t.dataset.dec; if (!d) return;
   const v = parseFloat(t.value), val = isNaN(v) || v < 0 ? 0 : v;
